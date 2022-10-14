@@ -1,7 +1,6 @@
 import numpy as np 
 import tensorflow as tf 
 import random
-from bloqade import unit_disk_graph,mis_postprocessing
 
 class OneD_RNN_wavefxn(tf.keras.Model):
     
@@ -10,15 +9,14 @@ class OneD_RNN_wavefxn(tf.keras.Model):
                  V, Omega, delta,
                  num_hidden, learning_rate,
                  weight_sharing = True,
-                 trunc=2, seed=1234,
-                 Num_Dropped=0,Atom_Coords=None,
-                 post_process=False):
+                 trunc=2, seed=1234):
         
         super(OneD_RNN_wavefxn, self).__init__()
 
         """ PARAMETERS """
         self.Lx       = Lx              # Size along x
         self.Ly       = Ly              # Size along y
+        self.N        = self.Lx * self.Ly
         self.V        = V               # Van der Waals potential
         self.Omega    = Omega           # Rabi frequency
         self.delta    = delta           # Detuning
@@ -27,20 +25,7 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         self.seed     = seed            # Seed of random number generator 
         self.K        = 2               # Dimension of the local Hilbert space
         self.weight_sharing = weight_sharing # Option to share weights between RNN cells or not (default = True)
-
-        """ MIS SPECIFIC PARAMETERS """
-        self.Num_Dropped = Num_Dropped
-        self.Atom_Coords = Atom_Coords
-        if self.Atom_Coords.all() != None:
-            self.Atom_Sites = self.coord_to_site(self.Atom_Coords[:,0],self.Atom_Coords[:,1])
-        # if self.Atom_Coords != None:
-        #     self.Atom_Sites = self.coord_to_site(self.Atom_Coords[:,0],self.Atom_Coords[:,1])
-        self.N = self.Lx * self.Ly - self.Num_Dropped
-
-        self.post_process = post_process
-        if self.post_process:
-            self.g = unit_disk_graph(self.Atom_Coords,radius=1) # radius can also be changed
-
+         
         # Set the seed of the rng
         tf.random.set_seed(self.seed)
 
@@ -59,7 +44,7 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         self.dense = tf.keras.layers.Dense(self.K, activation = tf.nn.softmax,
                                            kernel_regularizer = tf.keras.regularizers.l2(0.001))
 
-        self.sample(1,sample_post_process=False)
+        self.sample(1)
         self.trainable_variables_ = []
         self.trainable_variables_.extend(self.rnn.trainable_variables)
         self.trainable_variables_.extend(self.dense.trainable_variables)
@@ -74,11 +59,9 @@ class OneD_RNN_wavefxn(tf.keras.Model):
 
         # Generate the list of interactions
         self.buildlattice()
-        if self.Num_Dropped != 0:
-            self.map_interactions() #generate list of MAPPED interactions
         
     @tf.function
-    def sample(self,nsamples,sample_post_process):
+    def sample(self,nsamples):
         # Zero initialization for visible and hidden state 
         # print("sampling!")
         inputs = 0.0*tf.one_hot(tf.zeros(shape=[nsamples,1],dtype=tf.int32),depth=self.K)
@@ -104,11 +87,6 @@ class OneD_RNN_wavefxn(tf.keras.Model):
 
             logP = logP+tf.reduce_sum(log_probs*tf.reshape(inputs,(nsamples,self.K)),axis=1)
         
-        if sample_post_process:
-            print("post processing samples!")
-            samples = mis_postprocessing(samples,self.g)
-            logP = self.logpsi(samples)
-
         return samples,logP
 
     @tf.function
@@ -136,12 +114,9 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         for j in range(self.N):
             eloc += - self.delta * tf.cast(samples[:,j],tf.float32)
      
-        if self.Num_Dropped != 0:
-            for n in range(len(self.mapped_interactions)):
-                eloc += (self.V/self.mapped_interactions[n][0]) * tf.cast(samples[:,self.mapped_interactions[n][1]]*samples[:,self.mapped_interactions[n][2]],tf.float32)
-        else:
-            for n in range(len(self.interactions)):
-                eloc += (self.V/self.interactions[n][0]) * tf.cast(samples[:,self.interactions[n][1]]*samples[:,self.interactions[n][2]],tf.float32)
+        
+        for n in range(len(self.interactions)):
+            eloc += (self.V/self.interactions[n][0]) * tf.cast(samples[:,self.interactions[n][1]]*samples[:,self.interactions[n][2]],tf.float32)
 
         flip_logpsi = tf.zeros(shape=[tf.shape(samples)[0]])
 
@@ -190,24 +165,3 @@ class OneD_RNN_wavefxn(tf.keras.Model):
                             else:
                                 self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n,y+n_)])
                                 self.interactions.append([coeff,self.coord_to_site(x,y+n_),self.coord_to_site(x+n,y)])
-
-    def map_interactions(self):
-        self.mapped_interactions = []
-        drop_count = 0
-        coord_mapping = []
-        
-        for i in range(self.Lx*self.Ly):
-            if np.all(i!=self.Atom_Sites):
-                drop_count += 1
-            else:
-                coord_mapping.append((i,i-drop_count))
-        
-        coord_mapping_array = np.array(coord_mapping)
-        
-        for n in range(len(self.interactions)):
-            interaction = self.interactions[n][:]
-            if np.any(coord_mapping_array[:,0]==interaction[1])&np.any(coord_mapping_array[:,0]==interaction[2]):
-                coeff = interaction[0]
-                spin1map = np.where(interaction[1]==coord_mapping_array[:,0])
-                spin2map = np.where(interaction[2]==coord_mapping_array[:,0])
-                self.mapped_interactions.append([coeff,coord_mapping_array[spin1map,1][0][0],coord_mapping_array[spin2map,1][0][0]])  

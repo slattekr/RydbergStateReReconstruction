@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 from Tensordot2 import tensordot
 import random
-from bloqade import unit_disk_graph,mis_postprocessing
 
 class MDTensorizedRNNCell(tf.compat.v1.nn.rnn_cell.RNNCell):
     """The 2D Tensorized RNN cell.
@@ -75,15 +74,12 @@ class MDRNNWavefunction(object):
                  weight_sharing = True,               #indicates whether RNN cells' weights are shared (same w dense layer)
                  trunc=2,                             #defines the order of NN interactions to include
                  seed=1234,
-                 cell=MDTensorizedRNNCell,            #defined above
-                 Num_Dropped=0,Atom_Coords=None,      #specific to MIS problem
-                 post_process = False):
-    
-        super(MDRNNWavefunction, self).__init__()
+                 cell=MDTensorizedRNNCell):
         
         """ PARAMETERS """
         self.Lx       = Lx              # Size along x
         self.Ly       = Ly              # Size along y
+        self.N = self.Lx * self.Ly
         self.V        = V               # Van der Waals potential
         self.Omega    = Omega           # Rabi frequency
         self.delta    = delta           # Detuning
@@ -93,20 +89,6 @@ class MDRNNWavefunction(object):
         self.K        = 2               # Dimension of the local Hilbert space
         self.weight_sharing = weight_sharing # Option to share weights between RNN cells or not (default = True)
         self.optimizer = tf.optimizers.Adam(learning_rate, epsilon=1e-8)
-
-
-        """ MIS SPECIFIC PARAMETERS """
-        self.Num_Dropped = Num_Dropped
-        self.Atom_Coords = Atom_Coords
-        if self.Atom_Coords.all() != None:
-            self.Atom_Sites = self.coord_to_site(self.Atom_Coords[:,0],self.Atom_Coords[:,1])
-        # if self.Atom_Coords != None:
-        #     self.Atom_Sites = self.coord_to_site(self.Atom_Coords[:,0],self.Atom_Coords[:,1])
-        self.N = self.Lx * self.Ly - self.Num_Dropped
-
-        self.post_process = post_process
-        if self.post_process:
-            self.g = unit_disk_graph(self.Atom_Coords,radius=1) # radius can also be changed
 
         # Set the seed of the rng
         tf.random.set_seed(self.seed)
@@ -124,11 +106,9 @@ class MDRNNWavefunction(object):
 
         # Generate the list of interactions
         self.buildlattice()
-        if self.Num_Dropped != 0:
-            self.map_interactions() #generate list of MAPPED interactions
 
         # Generate trainable variables
-        self.sample(1,sample_post_process = False)
+        self.sample(1)
         self.trainable_variables = []
         if self.weight_sharing == True:
             self.trainable_variables.extend(self.rnn.trainable_variables)
@@ -156,7 +136,7 @@ class MDRNNWavefunction(object):
             print(f'The sum of params is {sum}')
 
 
-    def sample(self, numsamples,sample_post_process):
+    def sample(self, numsamples):
         """
             generate samples from a probability distribution parametrized by a recurrent network
             ------------------------------------------------------------------------
@@ -249,19 +229,6 @@ class MDRNNWavefunction(object):
         log_probs = tf.reduce_sum(
             tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3)), axis=2), axis=1)
         full_samples = tf.reshape(samples,(numsamples,self.Lx*self.Ly)) 
-        print(tf.shape(full_samples))
-
-        # # Check that log_probs are calculated correctly
-        # log_probs_fxn = self.logpsi(full_samples)
-        # if np.sum(abs(log_probs-log_probs_fxn)) != 0:
-        #     print("SOS!")
-
-        if sample_post_process:
-            print("post processing samples!")
-            full_samples = mis_postprocessing(full_samples,self.g)
-            print(tf.shape(full_samples))
-            log_probs = self.logpsi(full_samples)
-
         return full_samples, log_probs
 
     def logpsi(self, samples):
@@ -366,12 +333,8 @@ class MDRNNWavefunction(object):
         for j in range(self.N):
             eloc += - self.delta * tf.cast(samples[:,j],tf.float32)
      
-        if self.Num_Dropped != 0:
-            for n in range(len(self.mapped_interactions)):
-                eloc += (self.V/self.mapped_interactions[n][0]) * tf.cast(samples[:,self.mapped_interactions[n][1]]*samples[:,self.mapped_interactions[n][2]],tf.float32)
-        else:
-            for n in range(len(self.interactions)):
-                eloc += (self.V/self.interactions[n][0]) * tf.cast(samples[:,self.interactions[n][1]]*samples[:,self.interactions[n][2]],tf.float32)
+        for n in range(len(self.interactions)):
+            eloc += (self.V/self.interactions[n][0]) * tf.cast(samples[:,self.interactions[n][1]]*samples[:,self.interactions[n][2]],tf.float32)
 
         flip_logpsi = tf.zeros(shape=[tf.shape(samples)[0]])
 
@@ -421,24 +384,4 @@ class MDRNNWavefunction(object):
                             else:
                                 self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n,y+n_)])
                                 self.interactions.append([coeff,self.coord_to_site(x,y+n_),self.coord_to_site(x+n,y)])
-                                
-    def map_interactions(self):
-        self.mapped_interactions = []
-        num_dropped = 0
-        coord_mapping = []
-        
-        for i in range(self.Lx*self.Ly):
-            if np.all(i!=self.Atom_Sites):
-                num_dropped += 1
-            else:
-                coord_mapping.append((i,i-num_dropped))
-        
-        coord_mapping_array = np.array(coord_mapping)
-        
-        for n in range(len(self.interactions)):
-            interaction = self.interactions[n][:]
-            if np.any(coord_mapping_array[:,0]==interaction[1])&np.any(coord_mapping_array[:,0]==interaction[2]):
-                coeff = interaction[0]
-                spin1map = np.where(interaction[1]==coord_mapping_array[:,0])
-                spin2map = np.where(interaction[2]==coord_mapping_array[:,0])
-                self.mapped_interactions.append([coeff,coord_mapping_array[spin1map,1][0][0],coord_mapping_array[spin2map,1][0][0]])  
+                            
