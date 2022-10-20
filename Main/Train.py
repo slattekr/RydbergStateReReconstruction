@@ -5,9 +5,9 @@ from OneD_RNN import OneD_RNN_wavefxn
 from TwoD_RNN import MDRNNWavefunction
 from helpers import save_path
 from dset_helpers import load_QMC_data,create_tf_dataset
-from plots import plot_E,plot_var
+from plots import plot_E,plot_var,plot_loss
 
-def train_w_data(config,energy,variance):
+def train_w_data(config,energy,variance,cost):
 
     '''
     Train an RNN to represent a quantum ground state wave function using data.
@@ -56,6 +56,8 @@ def train_w_data(config,energy,variance):
         dset = dset.batch(batch_size)
         
         for i, batch in enumerate(dset):
+            # print(f"batch #{i}")
+            # print(f"Shape of data batches: {tf.shape(batch)}")
             # Evaluate the loss function in AD mode
             with tf.GradientTape() as tape:
                 logpsi = wavefxn.logpsi(batch)
@@ -66,13 +68,17 @@ def train_w_data(config,energy,variance):
             
         #append the energy to see convergence
         samples, _ = wavefxn.sample(ns)
+        # print("Calling logpsi on samples drawn from RNN")
+        # print(f"Shape of samples: {tf.shape(samples)}")
         sample_logpsi = wavefxn.logpsi(samples)
+        # print("localenergy calls logpsi")
         sample_eloc = wavefxn.localenergy(samples, sample_logpsi)
         energies = sample_eloc.numpy()
         avg_E = np.mean(energies)/float(wavefxn.N)
         var_E = np.var(energies)/float(wavefxn.N)
         energy.append(avg_E)
         variance.append(var_E)
+        cost.append(loss)
 
         if (config['Print'] ==True):
             print(f"Step #{n}")
@@ -95,5 +101,6 @@ def train_w_data(config,energy,variance):
     if config['Plot']:
         plot_E(energy,exact_E,wavefxn.N,epochs)
         plot_var(variance,wavefxn.N,epochs)
+        plot_loss(cost,wavefxn.N,epochs)
 
     return wavefxn, energy, variance

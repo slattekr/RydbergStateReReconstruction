@@ -244,10 +244,15 @@ class MDRNNWavefunction(object):
         log-probs        tf.Tensor of shape (number of samples,)
                          the log-probability of each sample
         """
-        
+        # print("Input Samples")
+        # print(samples[0,:])
         numsamples = samples.shape[0]
         samples_ = tf.reshape(samples, (numsamples,self.Lx,self.Ly))
+        # print("Reshaped Samples")
+        # print(samples_)
         samples_ = tf.transpose(samples_, perm=[1, 2, 0])
+        # print("Permuted Samples")
+        # print(samples_)
         rnn_states = {}
         inputs = {}
 
@@ -296,8 +301,15 @@ class MDRNNWavefunction(object):
                     else:
                         rnn_output, rnn_states[f"{nx}{ny}"] = self.rnn[ny * self.Lx + nx]((inputs[f"{nx - 1}{ny}"],inputs[f"{nx}{ny - 1}"]),(rnn_states[f"{nx - 1}{ny}"],rnn_states[f"{nx}{ny - 1}"]))
                         output = self.dense[ny * self.Lx + nx](rnn_output)
-
+                    
+                    # if nx==0 & ny==0:
+                        # print("make sure first sample input correctly:")
+                        # print(tf.reduce_sum(first_sample-samples_[nx,ny]))
                     probs[nx][ny] = output
+                    # print(f"{nx},{ny}")
+                    # print(samples_[nx,ny])
+                    # print(tf.shape(samples_[nx,ny]))
+                    # print(tf.shape(tf.one_hot(samples_[nx,ny], depth=self.K, dtype=tf.float32)))
                     inputs[f"{nx}{ny}"] = tf.one_hot(samples_[nx, ny], depth=self.K, dtype=tf.float32)
 
             if ny % 2 == 1:
@@ -314,6 +326,8 @@ class MDRNNWavefunction(object):
                     probs[nx][ny] = output
                     inputs[f"{nx}{ny}"] = tf.one_hot(samples_[nx, ny], depth=self.K, dtype=tf.float32)
 
+        # print("END OF LOGPSI")
+        # print(tf.shape(probs))
         probs = tf.transpose(tf.stack(values=probs, axis=0), perm=[2, 0, 1, 3])
         samples_ = tf.transpose(samples_, perm=[2, 0, 1])
         one_hot_samples = tf.one_hot(samples_, depth=self.K, dtype=tf.float32)
