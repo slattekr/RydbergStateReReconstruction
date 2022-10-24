@@ -47,7 +47,7 @@ def train_w_data(config,energy,variance,cost):
     batch_size = config['batch_size']
     epochs = config['epochs']
     exact_E, full_data = load_QMC_data(Lx)
-    data = create_tf_dataset(full_data,100) # Check...!
+    data = create_tf_dataset(full_data,10) # Check...!
 
 
     for n in range(1, epochs+1):

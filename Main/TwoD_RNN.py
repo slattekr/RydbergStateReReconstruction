@@ -315,8 +315,16 @@ class MDRNNWavefunction(object):
             if ny % 2 == 1:
 
                 for nx in range(self.Lx - 1, -1, -1):  # right to left
+                    #print(nx,ny )
 
                     if self.weight_sharing == True:
+                        inputs_up = inputs[f"{nx}{ny - 1}"]
+                        states_up = rnn_states[f"{nx}{ny - 1}"]
+                        inputs_right = inputs[f"{nx + 1}{ny}"]
+                        states_right = rnn_states[f"{nx + 1}{ny}"]
+                        # print(f"in the x direction: \n inputs: {tf.shape(inputs_right)} \n rnn_states: {tf.shape(states_right)}")
+                        # print(f"in the y direction: \n inputs: {tf.shape(inputs_up)} \n rnn_states: {tf.shape(states_up)}")
+                        # print(f"averages of inputs: \n x = {tf.reduce_mean(inputs_right,axis=0)} \n y = {tf.reduce_mean(inputs_up,axis=0)}")
                         rnn_output,rnn_states[f"{nx}{ny}"] = self.rnn((inputs[f"{nx + 1}{ny}"],inputs[f"{nx}{ny - 1}"]),(rnn_states[f"{nx + 1}{ny}"],rnn_states[f"{nx}{ny - 1}"]))
                         output = self.dense(rnn_output)
                     else:
@@ -331,8 +339,7 @@ class MDRNNWavefunction(object):
         probs = tf.transpose(tf.stack(values=probs, axis=0), perm=[2, 0, 1, 3])
         samples_ = tf.transpose(samples_, perm=[2, 0, 1])
         one_hot_samples = tf.one_hot(samples_, depth=self.K, dtype=tf.float32)
-        log_probs = tf.reduce_sum(
-            tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3)), axis=2), axis=1)
+        log_probs = tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.clip_by_value(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3),1e-10,1.0)), axis=2), axis=1)
 
         return log_probs
     
