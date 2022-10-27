@@ -106,9 +106,11 @@ class MDRNNWavefunction(object):
 
         # Generate the list of interactions
         self.buildlattice()
+        #print(np.array(self.interactions))
 
         # Generate trainable variables
-        self.sample(1)
+        initsample = self.sample(1)
+        self.logpsi(initsample)
         self.trainable_variables = []
         if self.weight_sharing == True:
             self.trainable_variables.extend(self.rnn.trainable_variables)
@@ -202,6 +204,7 @@ class MDRNNWavefunction(object):
                         output = self.dense[ny * self.Lx + nx](rnn_output)
 
                     sample_temp = tf.reshape(tf.random.categorical(tf.math.log(output), num_samples=1), [-1, ])
+                    sample_temp_ = (self.Lx*ny + nx)*tf.ones(numsamples)
                     samples[nx][ny] = sample_temp
                     probs[nx][ny] = output
                     inputs[f"{nx}{ny}"] = tf.one_hot(sample_temp, depth=self.K, dtype=tf.float32)
@@ -219,17 +222,26 @@ class MDRNNWavefunction(object):
                         output = self.dense[ny * self.Lx + nx](rnn_output)
                     
                     sample_temp = tf.reshape(tf.random.categorical(tf.math.log(output), num_samples=1), [-1, ])
+                    sample_temp_ = (self.Lx*ny + nx)*tf.ones(numsamples)
                     samples[nx][ny] = sample_temp
                     probs[nx][ny] = output
                     inputs[f"{nx}{ny}"] = tf.one_hot(sample_temp, depth=self.K, dtype=tf.float32)
 
-        samples = tf.transpose(tf.stack(values=samples, axis=0), perm=[2, 0, 1])
-        probs = tf.transpose(tf.stack(values=probs, axis=0), perm=[2, 0, 1, 3])
-        one_hot_samples = tf.one_hot(samples, depth=self.K, dtype=tf.float32)
-        log_probs = tf.reduce_sum(
-            tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3)), axis=2), axis=1)
+        samples = tf.transpose(tf.stack(values=samples, axis=0), perm=[2,0,1])
+        # print("straight from RNN")
+        # print(samples)
+        samples = tf.transpose(samples, perm=[0,2,1])
+        # print("permuted")
+        # print(samples)
+        # dont need log probs calculated here
+        # probs = tf.transpose(tf.stack(values=probs, axis=0), perm=[2, 0, 1, 3])
+        # one_hot_samples = tf.one_hot(samples, depth=self.K, dtype=tf.float32)
+        # log_probs = tf.reduce_sum(
+        #     tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3)), axis=2), axis=1)
         full_samples = tf.reshape(samples,(numsamples,self.Lx*self.Ly)) 
-        return full_samples, log_probs
+        # print("permuting the samples gives us the proper long sample")
+        # print(full_samples)
+        return full_samples
 
     def logpsi(self, samples):
         """
@@ -244,14 +256,20 @@ class MDRNNWavefunction(object):
         log-probs        tf.Tensor of shape (number of samples,)
                          the log-probability of each sample
         """
+        # print("LOGPSI")
         # print("Input Samples")
         # print(samples[0,:])
         numsamples = samples.shape[0]
         samples_ = tf.reshape(samples, (numsamples,self.Lx,self.Ly))
+        # print(samples_.numpy()[0,:,:])
         # print("Reshaped Samples")
         # print(samples_)
-        samples_ = tf.transpose(samples_, perm=[1, 2, 0])
+        samples_ = tf.transpose(samples_, perm=[0,2,1])
+        # print(samples_.numpy()[:,:,0])
         # print("Permuted Samples")
+        # print(samples_)
+        samples_ = tf.transpose(samples_, perm=[1,2,0])
+        # print("samples to pass through RNN")
         # print(samples_)
         rnn_states = {}
         inputs = {}
@@ -306,10 +324,6 @@ class MDRNNWavefunction(object):
                         # print("make sure first sample input correctly:")
                         # print(tf.reduce_sum(first_sample-samples_[nx,ny]))
                     probs[nx][ny] = output
-                    # print(f"{nx},{ny}")
-                    # print(samples_[nx,ny])
-                    # print(tf.shape(samples_[nx,ny]))
-                    # print(tf.shape(tf.one_hot(samples_[nx,ny], depth=self.K, dtype=tf.float32)))
                     inputs[f"{nx}{ny}"] = tf.one_hot(samples_[nx, ny], depth=self.K, dtype=tf.float32)
 
             if ny % 2 == 1:
@@ -318,10 +332,10 @@ class MDRNNWavefunction(object):
                     #print(nx,ny )
 
                     if self.weight_sharing == True:
-                        inputs_up = inputs[f"{nx}{ny - 1}"]
-                        states_up = rnn_states[f"{nx}{ny - 1}"]
-                        inputs_right = inputs[f"{nx + 1}{ny}"]
-                        states_right = rnn_states[f"{nx + 1}{ny}"]
+                        # inputs_up = inputs[f"{nx}{ny - 1}"]
+                        # states_up = rnn_states[f"{nx}{ny - 1}"]
+                        # inputs_right = inputs[f"{nx + 1}{ny}"]
+                        # states_right = rnn_states[f"{nx + 1}{ny}"]
                         # print(f"in the x direction: \n inputs: {tf.shape(inputs_right)} \n rnn_states: {tf.shape(states_right)}")
                         # print(f"in the y direction: \n inputs: {tf.shape(inputs_up)} \n rnn_states: {tf.shape(states_up)}")
                         # print(f"averages of inputs: \n x = {tf.reduce_mean(inputs_right,axis=0)} \n y = {tf.reduce_mean(inputs_up,axis=0)}")
@@ -334,9 +348,7 @@ class MDRNNWavefunction(object):
                     probs[nx][ny] = output
                     inputs[f"{nx}{ny}"] = tf.one_hot(samples_[nx, ny], depth=self.K, dtype=tf.float32)
 
-        # print("END OF LOGPSI")
-        # print(tf.shape(probs))
-        probs = tf.transpose(tf.stack(values=probs, axis=0), perm=[2, 0, 1, 3])
+        probs = tf.transpose(probs,perm=[2,0,1,3])
         samples_ = tf.transpose(samples_, perm=[2, 0, 1])
         one_hot_samples = tf.one_hot(samples_, depth=self.K, dtype=tf.float32)
         log_probs = tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.clip_by_value(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3),1e-10,1.0)), axis=2), axis=1)
