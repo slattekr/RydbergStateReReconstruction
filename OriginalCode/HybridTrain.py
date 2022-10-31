@@ -5,7 +5,7 @@ from dset_helpers import create_tf_dataset
 from OneD_RNN import OneD_RNN_wavefxn
 from TwoD_RNN import MDRNNWavefunction
 from helpers import save_path
-from rydberg_density import RydbergDensity_simple
+import matplotlib.pyplot as plt
 
 def run_DataPlusVMC(config,energy,variance):
 
@@ -162,8 +162,7 @@ def run_DataPlusVMC(config,energy,variance):
             print(" ")
     
     if config['Write_Data']==True:
-        samples_final,_ = wavefxn.sample(10000)
-        ryd_dens = RydbergDensity_simple(samples_final)
+        samples_final,_ = wavefxn.sample(10000,False)
         path = config['save_path']
         if not os.path.exists(path):
             os.makedirs(path)
@@ -173,6 +172,17 @@ def run_DataPlusVMC(config,energy,variance):
         np.save(path+'/Energy',energy)
         np.save(path+'/Variance',variance)
         np.save(path+'/Samples',samples)
-        np.save(path+'/Rydberg_Density',ryd_dens)
+    
+    if config['Plot']:
+        plt.title("Energy")
+        plt.plot(np.arange(len(energy)),energy)
+        plt.xlabel("steps")
+        plt.ylabel("RNN energy")
+        plt.show()
+        plt.title("Variance")
+        plt.plot(np.arange(len(variance)),variance)
+        plt.xlabel("steps")
+        plt.ylabel("Variance")
+        plt.show()
             
     return wavefxn, energy, variance

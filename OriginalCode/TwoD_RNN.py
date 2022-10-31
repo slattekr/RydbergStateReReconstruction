@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 from Tensordot2 import tensordot
 import random
-from bloqade import unit_disk_graph,mis_postprocessing
 
 class MDTensorizedRNNCell(tf.compat.v1.nn.rnn_cell.RNNCell):
     """The 2D Tensorized RNN cell.
@@ -249,7 +248,7 @@ class MDRNNWavefunction(object):
         log_probs = tf.reduce_sum(
             tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3)), axis=2), axis=1)
         full_samples = tf.reshape(samples,(numsamples,self.Lx*self.Ly)) 
-        print(tf.shape(full_samples))
+        # print(tf.shape(full_samples))
 
         # # Check that log_probs are calculated correctly
         # log_probs_fxn = self.logpsi(full_samples)
