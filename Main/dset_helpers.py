@@ -36,7 +36,5 @@ def create_tf_dataset(uploaded_files, data_step_size=100):
 
     #convert to tf.data.Dataset
     data = np.array(data)
-    print(data)
     dataset = tf.data.Dataset.from_tensor_slices(data)
-    print(dataset)
     return dataset

@@ -24,8 +24,8 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         self.nh       = num_hidden      # Number of hidden units in the RNN
         self.seed     = seed            # Seed of random number generator 
         self.K        = 2               # Dimension of the local Hilbert space
-        self.weight_sharing = weight_sharing # Option to share weights between RNN cells or not (default = True)
-         
+        self.weight_sharing = weight_sharing # Option to share weights between RNN cells or not (always true for OneD RNN)
+
         # Set the seed of the rng
         tf.random.set_seed(self.seed)
 
@@ -113,8 +113,7 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         # Chemical potential
         for j in range(self.N):
             eloc += - self.delta * tf.cast(samples[:,j],tf.float32)
-     
-        
+
         for n in range(len(self.interactions)):
             eloc += (self.V/self.interactions[n][0]) * tf.cast(samples[:,self.interactions[n][1]]*samples[:,self.interactions[n][2]],tf.float32)
 

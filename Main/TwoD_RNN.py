@@ -3,6 +3,9 @@ import tensorflow as tf
 from Tensordot2 import tensordot
 import random
 
+def coord_to_site_bravais(Lx, x, y):
+    return Lx * y + x
+
 class MDTensorizedRNNCell(tf.compat.v1.nn.rnn_cell.RNNCell):
     """The 2D Tensorized RNN cell.
     """
@@ -66,6 +69,83 @@ class MDTensorizedRNNCell(tf.compat.v1.nn.rnn_cell.RNNCell):
 
         return output, new_state
 
+
+class MDRNNGRUcell(tf.compat.v1.nn.rnn_cell.RNNCell):
+    """
+    An implementation of a 2D tensorized GRU RNN cell
+    """
+
+    def __init__(self, units=None, output_size=None, activation=None, name=None, dtype=None):
+        super(MDRNNGRUcell, self).__init__(name=name)
+        # save class variables
+        self._num_in = output_size
+        self._num_units = units
+        self._state_size = units
+        self._output_size = output_size
+        self.activation = activation
+
+        self.W = tf.compat.v1.get_variable("W_" + name, shape=[units, 2 * units, 2 * self.input_size],
+                                           initializer=tf.keras.initializers.VarianceScaling(scale=1.0,
+                                                                                             mode="fan_avg",
+                                                                                             distribution="uniform"),
+                                           dtype=dtype)
+
+        self.b = tf.compat.v1.get_variable("b_" + name, shape=[units],
+                                           initializer=tf.keras.initializers.VarianceScaling(scale=1.0,
+                                                                                             mode="fan_avg",
+                                                                                             distribution="uniform"),
+                                           dtype=dtype)
+
+        self.Wg = tf.compat.v1.get_variable("Wg_" + name, shape=[units, 2 * units, 2 * self.input_size],
+                                            initializer=tf.keras.initializers.VarianceScaling(scale=1.0,
+                                                                                              mode="fan_avg",
+                                                                                              distribution="uniform"),
+                                            dtype=dtype)
+
+        self.bg = tf.compat.v1.get_variable("bg_" + name, shape=[units],
+                                            initializer=tf.keras.initializers.VarianceScaling(scale=1.0,
+                                                                                              mode="fan_avg",
+                                                                                              distribution="uniform"),
+                                            dtype=dtype)
+
+        self.Wmerge = tf.compat.v1.get_variable("Wmerge_" + name, shape=[2 * units, units],
+                                                initializer=tf.keras.initializers.VarianceScaling(scale=1.0,
+                                                                                                  mode="fan_avg",
+                                                                                                  distribution="uniform"),
+                                                dtype=dtype)
+
+    # needed properties
+    @property
+    def trainable_variables(self):
+        return [self.W, self.b, self.Wg, self.bg, self.Wmerge]
+
+    @property
+    def input_size(self):
+        return self._num_in  # real
+
+    @property
+    def state_size(self):
+        return self._state_size
+
+    @property
+    def output_size(self):
+        return self._output_size
+
+    def call(self, inputs, states):
+        inputstate_mul = tf.einsum('ij,ik->ijk', tf.concat((states[0], states[1]), 1),
+                                   tf.concat((inputs[0], inputs[1]), 1))
+        # prepare input linear combination
+        state_mul = tensordot(tf, inputstate_mul, self.W, axes=[[1, 2], [1, 2]])  # [batch_sz, num_units]
+        state_mulg = tensordot(tf, inputstate_mul, self.Wg, axes=[[1, 2], [1, 2]])  # [batch_sz, num_units]
+
+        u = tf.nn.sigmoid(state_mulg + self.bg)
+        state_tilda = tf.nn.tanh(state_mul + self.b)  # [batch_sz, num_units] C
+
+        new_state = u * state_tilda + (1. - u) * tf.matmul(tf.concat(states, 1), self.Wmerge)
+        output = new_state
+        return output, new_state
+
+
 class MDRNNWavefunction(object):
     def __init__(self, Lx:int, Ly:int,                #system size parameters
                  V, Omega, delta,                     #experiment parameters
@@ -79,7 +159,7 @@ class MDRNNWavefunction(object):
         """ PARAMETERS """
         self.Lx       = Lx              # Size along x
         self.Ly       = Ly              # Size along y
-        self.N = self.Lx * self.Ly
+        self.N        = self.Lx * self.Ly 
         self.V        = V               # Van der Waals potential
         self.Omega    = Omega           # Rabi frequency
         self.delta    = delta           # Detuning
@@ -94,23 +174,20 @@ class MDRNNWavefunction(object):
         tf.random.set_seed(self.seed)
         
         if self.weight_sharing == True:
-            self.rnn = cell(units=self.nh, output_size=self.K,activation=tf.nn.relu, dtype=tf.float32)
-            self.dense = tf.keras.layers.Dense(self.K, activation=tf.nn.softmax, dtype=tf.float32)
-        
+            self.rnn = cell(units=self.nh, output_size=self.K,activation=tf.nn.relu, name="RNN", dtype=tf.float32)
+            self.dense = tf.keras.layers.Dense(self.K, activation=tf.nn.softmax, name = "Dense", dtype=tf.float32)
         else:
             self.rnn = [cell(units=self.nh, output_size=self.K,activation=tf.nn.relu, name=f"RNN_{0}_{i}", dtype=tf.float32) for i in
-                            range(self.Lx * self.Ly)]
+                            range(self.N)]
             self.dense = [tf.keras.layers.Dense(self.K, activation=tf.nn.softmax, name=f'RNNWF_dense_{i}', dtype=tf.float32) for
-                            i in range(self.Lx * self.Ly)]
+                            i in range(self.N)]
         
 
         # Generate the list of interactions
         self.buildlattice()
-        #print(np.array(self.interactions))
 
         # Generate trainable variables
-        initsample = self.sample(1)
-        self.logpsi(initsample)
+        self.sample(1,initial_pass=False)
         self.trainable_variables = []
         if self.weight_sharing == True:
             self.trainable_variables.extend(self.rnn.trainable_variables)
@@ -138,7 +215,7 @@ class MDRNNWavefunction(object):
             print(f'The sum of params is {sum}')
 
 
-    def sample(self, numsamples):
+    def sample(self, numsamples,initial_pass=False):
         """
             generate samples from a probability distribution parametrized by a recurrent network
             ------------------------------------------------------------------------
@@ -158,6 +235,11 @@ class MDRNNWavefunction(object):
         probs = [[[] for nx in range(self.Lx)] for ny in range(self.Ly)]
         rnn_states = {}
         inputs = {}
+        if initial_pass:
+            print("Track which samples are drawn from which cell:")
+            xs = [[[] for ny in range(self.Ly)] for nx in range(self.Ly)]
+            ys = [[[] for ny in range(self.Ly)] for nx in range(self.Ly)]
+            site_numbers = [[[] for ny in range(self.Ly)] for nx in range(self.Lx)]
 
         for ny in range(self.Ly):  # Loop over the boundaries for initialization
             if ny % 2 == 0:
@@ -204,10 +286,15 @@ class MDRNNWavefunction(object):
                         output = self.dense[ny * self.Lx + nx](rnn_output)
 
                     sample_temp = tf.reshape(tf.random.categorical(tf.math.log(output), num_samples=1), [-1, ])
-                    sample_temp_ = (self.Lx*ny + nx)*tf.ones(numsamples)
                     samples[nx][ny] = sample_temp
                     probs[nx][ny] = output
                     inputs[f"{nx}{ny}"] = tf.one_hot(sample_temp, depth=self.K, dtype=tf.float32)
+
+                    if initial_pass:
+                        xs[nx][ny] = nx
+                        ys[nx][ny] = ny
+                        site_numbers[nx][ny] = coord_to_site_bravais(self.Lx,nx,ny)
+                        print(f"at {nx},{ny} (site {coord_to_site_bravais(self.Lx,nx,ny)}), the sample is {sample_temp}")
 
             if ny % 2 == 1:
 
@@ -222,28 +309,33 @@ class MDRNNWavefunction(object):
                         output = self.dense[ny * self.Lx + nx](rnn_output)
                     
                     sample_temp = tf.reshape(tf.random.categorical(tf.math.log(output), num_samples=1), [-1, ])
-                    sample_temp_ = (self.Lx*ny + nx)*tf.ones(numsamples)
                     samples[nx][ny] = sample_temp
                     probs[nx][ny] = output
                     inputs[f"{nx}{ny}"] = tf.one_hot(sample_temp, depth=self.K, dtype=tf.float32)
 
-        samples = tf.transpose(tf.stack(values=samples, axis=0), perm=[2,0,1])
-        # print("straight from RNN")
-        # print(samples)
-        samples = tf.transpose(samples, perm=[0,2,1])
-        # print("permuted")
-        # print(samples)
-        # dont need log probs calculated here
-        # probs = tf.transpose(tf.stack(values=probs, axis=0), perm=[2, 0, 1, 3])
-        # one_hot_samples = tf.one_hot(samples, depth=self.K, dtype=tf.float32)
-        # log_probs = tf.reduce_sum(
-        #     tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3)), axis=2), axis=1)
-        full_samples = tf.reshape(samples,(numsamples,self.Lx*self.Ly)) 
-        # print("permuting the samples gives us the proper long sample")
-        # print(full_samples)
-        return full_samples
+                    if initial_pass:
+                        xs[nx][ny] = nx
+                        ys[nx][ny] = ny
+                        site_numbers[nx][ny] = coord_to_site_bravais(self.Lx,nx,ny)
+                        print(f"at {nx},{ny} (site {coord_to_site_bravais(self.Lx,nx,ny)}), the sample is {sample_temp}")
 
-    def logpsi(self, samples):
+        samples = tf.stack(values=samples, axis=1)
+        samples = tf.transpose(samples, perm=[2, 0, 1])
+        probs = tf.transpose(tf.stack(values=probs, axis=0), perm=[2, 0, 1, 3])
+        one_hot_samples = tf.one_hot(samples, depth=self.K, dtype=tf.float32)
+        log_probs = tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3)), axis=2), axis=1)
+        full_samples = tf.reshape(samples,(numsamples,self.Lx*self.Ly)) 
+        if initial_pass:
+            xs = tf.stack(values=xs,axis=1)
+            ys = tf.stack(values=ys,axis=1)
+            site_numbers = tf.stack(values=site_numbers,axis=1)
+
+        if initial_pass:
+            return xs, ys, site_numbers, samples, full_samples
+        else:
+            return full_samples, log_probs
+
+    def logpsi(self, samples,initial_pass=False):
         """
         calculate the log-probabilities of ```samples``
         ------------------------------------------------------------------------
@@ -256,23 +348,15 @@ class MDRNNWavefunction(object):
         log-probs        tf.Tensor of shape (number of samples,)
                          the log-probability of each sample
         """
-        # print("LOGPSI")
-        # print("Input Samples")
-        # print(samples[0,:])
+        samples_reconstructed = [[[] for nx in range(self.Lx)] for ny in range(self.Ly)]
+        probs = [[[] for nx in range(self.Lx)] for ny in range(self.Ly)]
         numsamples = samples.shape[0]
         samples_ = tf.reshape(samples, (numsamples,self.Lx,self.Ly))
-        # print(samples_.numpy()[0,:,:])
-        # print("Reshaped Samples")
-        # print(samples_)
-        samples_ = tf.transpose(samples_, perm=[0,2,1])
-        # print(samples_.numpy()[:,:,0])
-        # print("Permuted Samples")
-        # print(samples_)
-        samples_ = tf.transpose(samples_, perm=[1,2,0])
-        # print("samples to pass through RNN")
-        # print(samples_)
+        samples_input = tf.transpose(samples_, perm=[2, 1, 0])
         rnn_states = {}
         inputs = {}
+        if initial_pass:
+            print("\nCheck that samples get passed back through the same cell:")
 
         for ny in range(self.Ly):  # Loop over the boundaries for initialization
             if ny % 2 == 0:
@@ -282,8 +366,7 @@ class MDRNNWavefunction(object):
                     rnn_states[f"{nx}{ny}"] = self.rnn.zero_state(numsamples, dtype=tf.float32)
                 else:
                     rnn_states[f"{nx}{ny}"] = self.rnn[0].zero_state(numsamples, dtype=tf.float32)
-                inputs[f"{nx}{ny}"] = tf.zeros((numsamples, self.K),
-                                               dtype=tf.float32)  # Feed the table b in tf.
+                inputs[f"{nx}{ny}"] = tf.zeros((numsamples, self.K),dtype=tf.float32)  # Feed the table b in tf.
 
             if ny % 2 == 1:
                 
@@ -292,8 +375,7 @@ class MDRNNWavefunction(object):
                     rnn_states[f"{nx}{ny}"] = self.rnn.zero_state(numsamples, dtype=tf.float32)
                 else:
                     rnn_states[f"{nx}{ny}"] = self.rnn[0].zero_state(numsamples, dtype=tf.float32)
-                inputs[f"{nx}{ny}"] = tf.zeros((numsamples, self.K),
-                                               dtype=tf.float32)  # Feed the table b in tf.
+                inputs[f"{nx}{ny}"] = tf.zeros((numsamples, self.K),dtype=tf.float32)  # Feed the table b in tf.
 
         for nx in range(self.Lx):  # Loop over the boundaries for initialization
             ny = -1
@@ -301,10 +383,7 @@ class MDRNNWavefunction(object):
                 rnn_states[f"{nx}{ny}"] = self.rnn.zero_state(numsamples, dtype=tf.float32)
             else:
                 rnn_states[f"{nx}{ny}"] = self.rnn[0].zero_state(numsamples, dtype=tf.float32)
-            inputs[f"{nx}{ny}"] = tf.zeros((numsamples, self.K),
-                                           dtype=tf.float32)  # Feed the table b in tf.
-
-        probs = [[[] for nx in range(self.Lx)] for ny in range(self.Ly)]
+            inputs[f"{nx}{ny}"] = tf.zeros((numsamples, self.K),dtype=tf.float32)  # Feed the table b in tf.
 
         # Making a loop over the sites with the 2DRNN
         for ny in range(self.Ly):
@@ -319,26 +398,20 @@ class MDRNNWavefunction(object):
                     else:
                         rnn_output, rnn_states[f"{nx}{ny}"] = self.rnn[ny * self.Lx + nx]((inputs[f"{nx - 1}{ny}"],inputs[f"{nx}{ny - 1}"]),(rnn_states[f"{nx - 1}{ny}"],rnn_states[f"{nx}{ny - 1}"]))
                         output = self.dense[ny * self.Lx + nx](rnn_output)
-                    
-                    # if nx==0 & ny==0:
-                        # print("make sure first sample input correctly:")
-                        # print(tf.reduce_sum(first_sample-samples_[nx,ny]))
+
                     probs[nx][ny] = output
-                    inputs[f"{nx}{ny}"] = tf.one_hot(samples_[nx, ny], depth=self.K, dtype=tf.float32)
+                    sample_temp = samples_input[nx, ny]
+                    samples_reconstructed[nx][ny] = sample_temp
+                    inputs[f"{nx}{ny}"] = tf.one_hot(sample_temp, depth=self.K, dtype=tf.float32)
+                    if initial_pass:
+                        print(f"at {nx},{ny} (site {coord_to_site_bravais(self.Lx,nx,ny)}) the input sample is {samples_input[nx, ny]}.")
+                        print(f"the log probs are:\n{output}")
 
             if ny % 2 == 1:
 
                 for nx in range(self.Lx - 1, -1, -1):  # right to left
-                    #print(nx,ny )
 
                     if self.weight_sharing == True:
-                        # inputs_up = inputs[f"{nx}{ny - 1}"]
-                        # states_up = rnn_states[f"{nx}{ny - 1}"]
-                        # inputs_right = inputs[f"{nx + 1}{ny}"]
-                        # states_right = rnn_states[f"{nx + 1}{ny}"]
-                        # print(f"in the x direction: \n inputs: {tf.shape(inputs_right)} \n rnn_states: {tf.shape(states_right)}")
-                        # print(f"in the y direction: \n inputs: {tf.shape(inputs_up)} \n rnn_states: {tf.shape(states_up)}")
-                        # print(f"averages of inputs: \n x = {tf.reduce_mean(inputs_right,axis=0)} \n y = {tf.reduce_mean(inputs_up,axis=0)}")
                         rnn_output,rnn_states[f"{nx}{ny}"] = self.rnn((inputs[f"{nx + 1}{ny}"],inputs[f"{nx}{ny - 1}"]),(rnn_states[f"{nx + 1}{ny}"],rnn_states[f"{nx}{ny - 1}"]))
                         output = self.dense(rnn_output)
                     else:
@@ -346,17 +419,26 @@ class MDRNNWavefunction(object):
                         output = self.dense[ny * self.Lx + nx](rnn_output)
                         
                     probs[nx][ny] = output
-                    inputs[f"{nx}{ny}"] = tf.one_hot(samples_[nx, ny], depth=self.K, dtype=tf.float32)
+                    sample_temp = samples_input[nx, ny]
+                    samples_reconstructed[nx][ny] = sample_temp
+                    inputs[f"{nx}{ny}"] = tf.one_hot(sample_temp, depth=self.K, dtype=tf.float32)
+                    if initial_pass:
+                        print(f"at {nx},{ny} (site {coord_to_site_bravais(self.Lx,nx,ny)}) the input sample is {samples_input[nx, ny]}.")
+                        print(f"the log probs are:\n{output}")
 
-        probs = tf.transpose(probs,perm=[2,0,1,3])
-        samples_ = tf.transpose(samples_, perm=[2, 0, 1])
+        probs = tf.stack(values=probs, axis=1)
+        probs = tf.transpose(probs, perm=[2, 0, 1, 3])
+        samples_reconstructed = tf.stack(values=samples_reconstructed,axis=1)
+        samples_reconstructed = tf.transpose(samples_reconstructed,perm=[2,0,1])
+        if initial_pass:
+            # this assertion shows that we are manipulating probs/samples correctly
+            assert(np.all(samples_reconstructed.numpy()==samples_.numpy()))
         one_hot_samples = tf.one_hot(samples_, depth=self.K, dtype=tf.float32)
-        log_probs = tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.clip_by_value(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3),1e-10,1.0)), axis=2), axis=1)
+        log_probs = tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.clip_by_value(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3), 1e-10, 1.0)),axis=2), axis=1)
 
         return log_probs
     
     # THE BELOW SHOULD NOT CHANGE FROM ONE D RNN WF
-    
     # TODO: vectorize this function, make tf.function to speed up calculations significantly
     #@tf.function
     def localenergy(self,samples,logpsi):
@@ -375,7 +457,7 @@ class MDRNNWavefunction(object):
         for j in range(self.N):
             flip_samples = np.copy(samples)
             flip_samples[:,j] = 1 - flip_samples[:,j]
-            flip_logpsi = self.logpsi(flip_samples)
+            flip_logpsi = self.logpsi(flip_samples,initial_pass=False)
             eloc += -0.5*self.Omega * tf.math.exp(flip_logpsi-logpsi)
             
         return eloc
@@ -417,4 +499,3 @@ class MDRNNWavefunction(object):
                             else:
                                 self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n,y+n_)])
                                 self.interactions.append([coeff,self.coord_to_site(x,y+n_),self.coord_to_site(x+n,y)])
-                            

@@ -28,7 +28,7 @@ def plot_E(energy, exact_energy, N, total_epochs):
   print(f"The lowest energy achieved by the model was {lowest_energy}.")
   return final_energy
 
-def plot_var(variance, N, total_epochs):
+def plot_var(variance, N, total_epochs,log_scale=False):
   '''
   Plots the variance over epochs.
   '''
@@ -37,6 +37,8 @@ def plot_var(variance, N, total_epochs):
   plt.xlabel("Step",fontsize=15)
   plt.ylabel("$\\sigma^{2}$",fontsize=20)
   plt.ylim(-0.1,100)
+  if log_scale:
+    plt.yscale("log")
   plt.hlines(y=0,xmin=0,xmax=len(variance),color='k',label = "target variance")
   plt.title("{} sites".format(N))
   plt.legend(loc="best")
@@ -48,15 +50,14 @@ def plot_var(variance, N, total_epochs):
   return final_variance
 
 
-def plot_loss(cost, N, total_epochs):
+def plot_loss(cost, N, total_epochs,loss_type:str):
   '''
   Plots the loss over epochs.
   '''
   fig = plt.figure(1,figsize=(6,2.5), dpi=120, facecolor='w', edgecolor='k')
   plt.plot(cost,marker='o',markersize=2,linewidth=0.0,markevery=1,label="training loss")
   plt.xlabel("Step",fontsize=15)
-  plt.ylabel("KL",fontsize=20)
-  # plt.hlines(y=0,xmin=0,xmax=len(cost),color='k',label = "target loss")
+  plt.ylabel(loss_type,fontsize=20)
   plt.title("{} sites".format(N))
   plt.legend(loc="best")
   plt.show()
