@@ -49,6 +49,8 @@ def run_DataPlusVMC(config,energy,variance):
     exact_e = load_exact_Es(Lx)
     data = load_QMC_data(Lx)
     tf_dataset = create_tf_dataset(data,data_step)
+    #if config['scramble']:
+        #tf_dataset = data_scramble(tf_dataset)
     VMC_epochs = config['VMC_epochs']
     Data_epochs = config['Data_epochs']
 

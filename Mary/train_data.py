@@ -69,6 +69,8 @@ def Train_w_Data(config,energy,variance,cost):
     exact_e = load_exact_Es(Lx)
     data = load_QMC_data(Lx)
     tf_dataset = create_tf_dataset(data,data_step)
+    #if config['scramble']:
+        #tf_dataset = data_scramble(tf_dataset)
 
     for n in range(1, epochs+1):
         #use data to update RNN weights
