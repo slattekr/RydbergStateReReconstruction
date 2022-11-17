@@ -38,3 +38,16 @@ def create_tf_dataset(uploaded_files, data_step_size=100):
     data = np.array(data)
     dataset = tf.data.Dataset.from_tensor_slices(data)
     return dataset
+
+def bool_to_bin(rydberg_dataset):
+    return rydberg_dataset.astype(int)
+
+def data_given_param(sweep_rate:int,delta_value):
+    data_files = np.load(f'../../KZ_Data/KZ_data_16x16_{sweep_rate}_MHz_per_us.npz')
+    param_value = delta_value/data_files['rabi_freq']
+    index = np.where(np.isclose(data_files['params'],param_value))[0]
+    if len(index) < 1:
+        return print("This is not a valid value of delta!")
+    data = data_files['rydberg_data'][:,:,index,:]
+    data = bool_to_bin(data)
+    return data
