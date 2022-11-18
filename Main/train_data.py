@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 import numpy as np
-from dset_helpers import load_exact_Es,load_QMC_data,create_tf_dataset
+from dset_helpers import create_tf_dataset, data_given_param
 from OneD_RNN import OneD_RNN_wavefxn
 from TwoD_RNN import MDRNNWavefunction,MDTensorizedRNNCell,MDRNNGRUcell
 from helpers import save_path
@@ -21,6 +21,7 @@ def Train_w_Data(config,energy,variance,cost):
     V = config['V']
     delta = config['delta']
     Omega = config['Omega']
+    sweep_rate = config['sweep_rate']
 
     # RNN Parameters
     num_hidden = config['nh']
@@ -67,9 +68,10 @@ def Train_w_Data(config,energy,variance,cost):
     batch_size = config['batch_size']
     data_step = config['data_step']
     epochs = config['Data_epochs']
-    exact_e = load_exact_Es(Lx)
-    data = load_QMC_data(Lx)
+    data = data_given_param(sweep_rate,delta)
+    print("got data set!!!!")
     tf_dataset = create_tf_dataset(data,data_step)
+    print("data set in tf form!!!")
 
     for n in range(1, epochs+1):
         #use data to update RNN weights
@@ -102,7 +104,8 @@ def Train_w_Data(config,energy,variance,cost):
     
     if config['Write_Data']==True:
         samples_final,_ = wavefxn.sample(10000)
-        path = config['save_path']
+        exp_name = config['name']
+        path = f'./data/N_{Lx*Ly}/delta_{delta}/{exp_name}'
         if not os.path.exists(path):
             os.makedirs(path)
         with open(path+'/config.txt', 'w') as file:
@@ -110,6 +113,7 @@ def Train_w_Data(config,energy,variance,cost):
                 file.write(k+f'={v}\n')
         np.save(path+'/Energy',energy)
         np.save(path+'/Variance',variance)
+        np.save(path+'/Cost',cost)
         np.save(path+'/Samples',samples)
     
     if config['Plot']:

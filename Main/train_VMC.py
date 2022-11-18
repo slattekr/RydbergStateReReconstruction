@@ -48,6 +48,19 @@ def Train_w_VMC(config,energy,variance,cost):
         print(f"The experimental parameters are: V = {V}, delta = {delta}, Omega = {Omega}.")
         print(f"The system is an array of {Lx} by {Ly} Rydberg Atoms.")
 
+    @tf.function
+    def train_step(input_batch):
+        print("Tracing!")
+        with tf.GradientTape() as tape:
+            sample_logpsi = wavefxn.logpsi(samples)
+            with tape.stop_recording():
+                sample_eloc = tf.stop_gradient(wavefxn.localenergy(samples, sample_logpsi))
+                sample_Eo = tf.stop_gradient(tf.reduce_mean(sample_eloc))
+            loss = tf.reduce_mean(2.0*tf.multiply(sample_logpsi, tf.stop_gradient(sample_eloc)) - 2.0*sample_Eo*sample_logpsi)
+            gradients = tape.gradient(sample_loss, wavefxn.trainable_variables)
+            wavefxn.optimizer.apply_gradients(zip(gradients, wavefxn.trainable_variables))
+        return loss
+
     # Training Parameters
     ns = config['ns']
     batch_size = config['batch_size']
@@ -58,6 +71,7 @@ def Train_w_VMC(config,energy,variance,cost):
 
         samples, _ = wavefxn.sample(ns)
       
+        # WANT TO MAKE THIS TF FUNCTION! Need Eloc calculation to be tf function too
         # Evaluate the loss function in AD mode
         with tf.GradientTape() as tape:
             sample_logpsi = wavefxn.logpsi(samples)
@@ -66,10 +80,8 @@ def Train_w_VMC(config,energy,variance,cost):
                 sample_Eo = tf.stop_gradient(tf.reduce_mean(sample_eloc))
                   
             sample_loss = tf.reduce_mean(2.0*tf.multiply(sample_logpsi, tf.stop_gradient(sample_eloc)) - 2.0*sample_Eo*sample_logpsi)
-          
             # Compute the gradients either with sample_loss
             gradients = tape.gradient(sample_loss, wavefxn.trainable_variables)
-        
             # Update the parameters
             wavefxn.optimizer.apply_gradients(zip(gradients, wavefxn.trainable_variables))
            
@@ -93,7 +105,8 @@ def Train_w_VMC(config,energy,variance,cost):
     
     if config['Write_Data']==True:
         samples_final,_ = wavefxn.sample(10000)
-        path = config['save_path']
+        exp_name = config['name']
+        path = f'./data/N_{Lx*Ly}/delta_{delta}/{exp_name}'
         if not os.path.exists(path):
             os.makedirs(path)
         with open(path+'/config.txt', 'w') as file:
@@ -101,6 +114,7 @@ def Train_w_VMC(config,energy,variance,cost):
                 file.write(k+f'={v}\n')
         np.save(path+'/Energy',energy)
         np.save(path+'/Variance',variance)
+        np.save(path+'/Cost',cost)
         np.save(path+'/Samples',samples)
     
     if config['Plot']:
