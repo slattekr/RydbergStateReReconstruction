@@ -35,12 +35,14 @@ def Train_w_Data(config,energy,variance,cost):
         if config['Print'] ==True:
             print(f"Training a one-D RNN wave function with {num_hidden} hidden units and shared weights.")
         wavefxn = OneD_RNN_wavefxn(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed)
+        print("built wavefunction!")
     elif config['RNN'] =='TwoD':
         if config['Print'] ==True:
             print(f"Training a two-D RNN wave function with {num_hidden} hidden units and shared weights = {weight_sharing}.")
         if config['MDGRU']:
             print("Using GRU cell.")
             wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDRNNGRUcell)
+            print("got wavefunction!!!!!")
         else:
             wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDTensorizedRNNCell)
     else:
@@ -72,6 +74,7 @@ def Train_w_Data(config,energy,variance,cost):
     print("got data set!!!!")
     tf_dataset = create_tf_dataset(data,data_step)
     print("data set in tf form!!!")
+    print(tf.shape(tf_dataset))
 
     for n in range(1, epochs+1):
         #use data to update RNN weights

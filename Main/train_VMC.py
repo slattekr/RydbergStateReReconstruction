@@ -49,17 +49,21 @@ def Train_w_VMC(config,energy,variance,cost):
         print(f"The system is an array of {Lx} by {Ly} Rydberg Atoms.")
 
     @tf.function
-    def train_step(input_batch):
+    def train_step(training_samples):
         print("Tracing!")
+        # WANT TO MAKE THIS TF FUNCTION! Need Eloc calculation to be tf function too
+        # Evaluate the loss function in AD mode
         with tf.GradientTape() as tape:
-            sample_logpsi = wavefxn.logpsi(samples)
+            sample_logpsi = wavefxn.logpsi(training_samples)
             with tape.stop_recording():
                 sample_eloc = tf.stop_gradient(wavefxn.localenergy(samples, sample_logpsi))
                 sample_Eo = tf.stop_gradient(tf.reduce_mean(sample_eloc))
-            loss = tf.reduce_mean(2.0*tf.multiply(sample_logpsi, tf.stop_gradient(sample_eloc)) - 2.0*sample_Eo*sample_logpsi)
+            sample_loss = tf.reduce_mean(2.0*tf.multiply(sample_logpsi, tf.stop_gradient(sample_eloc)) - 2.0*sample_Eo*sample_logpsi)
+            # Compute the gradients either with sample_loss
             gradients = tape.gradient(sample_loss, wavefxn.trainable_variables)
+            # Update the parameters
             wavefxn.optimizer.apply_gradients(zip(gradients, wavefxn.trainable_variables))
-        return loss
+        return sample_loss
 
     # Training Parameters
     ns = config['ns']
@@ -70,21 +74,18 @@ def Train_w_VMC(config,energy,variance,cost):
     for n in range(1, epochs+1):
 
         samples, _ = wavefxn.sample(ns)
-      
-        # WANT TO MAKE THIS TF FUNCTION! Need Eloc calculation to be tf function too
-        # Evaluate the loss function in AD mode
+        # sample_loss = train_step(samples) #something wrong with this... so put back in the below
         with tf.GradientTape() as tape:
             sample_logpsi = wavefxn.logpsi(samples)
             with tape.stop_recording():
                 sample_eloc = tf.stop_gradient(wavefxn.localenergy(samples, sample_logpsi))
                 sample_Eo = tf.stop_gradient(tf.reduce_mean(sample_eloc))
-                  
             sample_loss = tf.reduce_mean(2.0*tf.multiply(sample_logpsi, tf.stop_gradient(sample_eloc)) - 2.0*sample_Eo*sample_logpsi)
             # Compute the gradients either with sample_loss
             gradients = tape.gradient(sample_loss, wavefxn.trainable_variables)
             # Update the parameters
             wavefxn.optimizer.apply_gradients(zip(gradients, wavefxn.trainable_variables))
-           
+        
         #append the energy to see convergence
         avg_loss = np.mean(sample_loss)
         samples, _ = wavefxn.sample(ns)
