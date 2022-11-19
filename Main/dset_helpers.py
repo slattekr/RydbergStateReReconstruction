@@ -22,7 +22,7 @@ def load_QMC_data(dim):
         uploaded[file] = data
     return uploaded
 
-def create_tf_dataset(uploaded_files, data_step_size=100):
+def create_tf_dataset_from_QMCdata(uploaded_files, data_step_size=100):
     '''
     create tensor flow data set from uploaded files
     data_step_size (int): determines step size when loading data (for QMC need to have this to overcome autocorrelations)
@@ -38,6 +38,15 @@ def create_tf_dataset(uploaded_files, data_step_size=100):
     data = np.array(data)
     dataset = tf.data.Dataset.from_tensor_slices(data)
     return dataset
+
+def create_KZ_tf_dataset(data):
+    # The data comes in shape ((lattice,shape),1,shots) where (lattice,shape) = square lattice (EX: 16x16)
+    Lx = np.shape(data)[0]
+    shots = np.shape(data)[-1]
+    data = np.reshape(data,(Lx**2,shots))
+    data = data.T
+    tf_data = tf.data.Dataset.from_tensor_slices(data)
+    return tf_data
 
 def bool_to_bin(rydberg_dataset):
     return rydberg_dataset.astype(int)

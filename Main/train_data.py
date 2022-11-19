@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 import numpy as np
-from dset_helpers import create_tf_dataset, data_given_param
+from dset_helpers import create_KZ_tf_dataset, data_given_param
 from OneD_RNN import OneD_RNN_wavefxn
 from TwoD_RNN import MDRNNWavefunction,MDTensorizedRNNCell,MDRNNGRUcell
 from helpers import save_path
@@ -33,14 +33,12 @@ def Train_w_Data(config,energy,variance,cost):
         if config['Print'] ==True:
             print(f"Training a one-D RNN wave function with {num_hidden} hidden units and shared weights.")
         wavefxn = OneD_RNN_wavefxn(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed)
-        print("built wavefunction!")
     elif config['RNN'] =='TwoD':
         if config['Print'] ==True:
             print(f"Training a two-D RNN wave function with {num_hidden} hidden units and shared weights = {weight_sharing}.")
         if config['MDGRU']:
             print("Using GRU cell.")
             wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDRNNGRUcell)
-            print("got wavefunction!!!!!")
         else:
             wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDTensorizedRNNCell)
     else:
@@ -66,13 +64,9 @@ def Train_w_Data(config,energy,variance,cost):
     # Training Parameters
     ns = config['ns']
     batch_size = config['batch_size']
-    data_step = config['data_step']
     epochs = config['Data_epochs']
     data = data_given_param(sweep_rate,delta)
-    print("got data set!!!!")
-    tf_dataset = create_tf_dataset(data,data_step)
-    print("data set in tf form!!!")
-    print(tf.shape(tf_dataset))
+    tf_dataset = create_KZ_tf_dataset(data)
 
     for n in range(1, epochs+1):
         #use data to update RNN weights

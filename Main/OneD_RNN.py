@@ -25,7 +25,7 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         self.seed     = seed            # Seed of random number generator 
         self.K        = 2               # Dimension of the local Hilbert space
         self.weight_sharing = weight_sharing # Option to share weights between RNN cells or not (always true for OneD RNN)
-        print("IN model")
+        
         # Set the seed of the rng
         tf.random.set_seed(self.seed)
 
@@ -43,8 +43,8 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         # Dense layer: nh - > K
         self.dense = tf.keras.layers.Dense(self.K, activation = tf.nn.softmax,
                                            kernel_regularizer = tf.keras.regularizers.l2(0.001))
-        print("created rnn cell and dense layer")
-        self.sample(1)
+
+        self.sample(10)
         self.trainable_variables_ = []
         self.trainable_variables_.extend(self.rnn.trainable_variables)
         self.trainable_variables_.extend(self.dense.trainable_variables)
@@ -62,12 +62,10 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         
     @tf.function
     def sample(self,nsamples):
-        print("inputs")
         inputs = 0.0*tf.one_hot(tf.zeros(shape=[nsamples,1],dtype=tf.int32),depth=self.K)
         hidden_state = tf.zeros(shape=[nsamples,self.nh])
         logP = tf.zeros(shape=[nsamples,],dtype=tf.float32)
         for j in range(self.N):
-            print(j)
             rnn_output,hidden_state = self.rnn(inputs,initial_state=hidden_state)
             probs = self.dense(rnn_output)
             log_probs = tf.reshape(tf.math.log(1e-10+probs),[nsamples,self.K])
@@ -78,18 +76,20 @@ class OneD_RNN_wavefxn(tf.keras.Model):
                 samples = tf.concat([samples,sample],axis=1)
             inputs = tf.one_hot(sample,depth=self.K)
             logP = logP+tf.reduce_sum(log_probs*tf.reshape(inputs,(nsamples,self.K)),axis=1)
+        samples = tf.cast(samples,dtype=tf.int64)
         return samples,logP
 
     @tf.function
     def logpsi(self,samples):
-        num_samples = tf.shape(samples)[0]
+        num_samples = samples.shape[0]
         data = tf.one_hot(samples[:,0:self.N-1],depth=self.K)
         x0 = 0.0*tf.one_hot(tf.zeros(shape=[num_samples,1],dtype=tf.int32),depth=self.K) #initialization
         inputs = tf.concat([x0,data],axis=1)
         hidden_state = tf.zeros(shape=[num_samples,self.nh])
         rnn_output,_ = self.rnn(inputs,initial_state = hidden_state)
         probs        = self.dense(rnn_output)
-        log_probs   = tf.reduce_sum(tf.multiply(tf.math.log(1e-10+probs),tf.one_hot(samples,depth=self.K)),axis=2)
+        one_hot_samples = tf.one_hot(samples,depth=self.K,axis=2)
+        log_probs   = tf.reduce_sum(tf.multiply(tf.math.log(1e-10+probs),one_hot_samples),axis=2)
         return 0.5 * tf.reduce_sum(log_probs, axis=1)
 
     #@tf.function
