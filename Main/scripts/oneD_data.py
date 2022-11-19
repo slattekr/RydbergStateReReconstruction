@@ -19,7 +19,7 @@ cost = []
 
 def main():
     config = {
-        'name': 'OneD_VMC_lowdelta', # A very random name for each experiment
+        'name': 'OneD_data_lowdelta', # A very random name for each experiment
 
         'Lx': Lx,  # number of sites in x-direction                    
         'Ly': Ly,  # number of sites in the y-direction
@@ -35,9 +35,8 @@ def main():
         'seed': 1234,
         
         'RNN': 'OneD',
-        'VMC_epochs':1000,
-        'Data_epochs':0,
-        'dset': None,
+        'VMC_epochs':0,
+        'Data_epochs':500,
         
         'ns': 1000,
         'batch_size': 100,

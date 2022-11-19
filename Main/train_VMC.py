@@ -5,8 +5,6 @@ from dset_helpers import load_exact_Es
 from OneD_RNN import OneD_RNN_wavefxn
 from TwoD_RNN import MDRNNWavefunction,MDTensorizedRNNCell,MDRNNGRUcell
 from helpers import save_path
-from plots import plot_E,plot_var,plot_loss
-import matplotlib.pyplot as plt
 
 def Train_w_VMC(config,energy,variance,cost):
 
@@ -117,10 +115,5 @@ def Train_w_VMC(config,energy,variance,cost):
         np.save(path+'/Variance',variance)
         np.save(path+'/Cost',cost)
         np.save(path+'/Samples',samples)
-    
-    if config['Plot']:
-        plot_E(energy, exact_e, wavefxn.N, epochs)
-        plot_var(variance, wavefxn.N, epochs)
-        plot_loss(cost, wavefxn.N, epochs, loss_type = '$\\langle H \\rangle$ - $E_0$')
-            
+                
     return wavefxn, energy, variance, cost
