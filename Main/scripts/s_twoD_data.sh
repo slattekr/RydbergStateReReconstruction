@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -t 5-00:00
-#SBATCH --mem=10000
+#SBATCH --mem=20000
 #SBATCH --account=rrg-rgmelko-ab
 #SBATCH --mail-user=msmoss@uwaterloo.ca
 #SBATCH --mail-type=ALL

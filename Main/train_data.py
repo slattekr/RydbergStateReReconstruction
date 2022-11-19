@@ -5,8 +5,6 @@ from dset_helpers import create_tf_dataset, data_given_param
 from OneD_RNN import OneD_RNN_wavefxn
 from TwoD_RNN import MDRNNWavefunction,MDTensorizedRNNCell,MDRNNGRUcell
 from helpers import save_path
-from plots import plot_E,plot_var,plot_loss
-import matplotlib.pyplot as plt
 
 def Train_w_Data(config,energy,variance,cost):
 
@@ -115,10 +113,5 @@ def Train_w_Data(config,energy,variance,cost):
         np.save(path+'/Variance',variance)
         np.save(path+'/Cost',cost)
         np.save(path+'/Samples',samples)
-    
-    if config['Plot']:
-        plot_E(energy, exact_e, wavefxn.N, epochs)
-        plot_var(variance, wavefxn.N, epochs)
-        plot_loss(cost, wavefxn.N, epochs, loss_type='KL')
             
     return wavefxn, energy, variance,cost

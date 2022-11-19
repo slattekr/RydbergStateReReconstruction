@@ -21,7 +21,7 @@ cost = []
 
 def main():
     config = {
-        'name': 'OneD_VMC_lowdelta', # A very random name for each experiment
+        'name': 'TwoD_VMC_lowdelta', # A very random name for each experiment
 
         'Lx': Lx,  # number of sites in x-direction                    
         'Ly': Ly,  # number of sites in the y-direction
@@ -37,6 +37,7 @@ def main():
         'seed': 1234,
         
         'RNN': 'TwoD',
+        'MDGRU':True,
         'VMC_epochs':1000,
         'Data_epochs':0,
         'dset': None,
