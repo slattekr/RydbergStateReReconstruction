@@ -94,12 +94,21 @@ class OneD_RNN_wavefxn(tf.keras.Model):
 
     #@tf.function
     def localenergy(self,samples,logpsi):
+        # print("local energy in model function!")
         eloc = tf.zeros(shape=[tf.shape(samples)[0]],dtype=tf.float32)
         # Chemical potential
         for j in range(self.N):
             eloc += - self.delta * tf.cast(samples[:,j],tf.float32)
+        # print(eloc)
+        # count=0
         for n in range(len(self.interactions)):
-            eloc += (self.V/self.interactions[n][0]) * tf.cast(samples[:,self.interactions[n][1]]*samples[:,self.interactions[n][2]],tf.float32)
+            contrib = (self.V/self.interactions[n][0]) * tf.cast(samples[:,self.interactions[n][1]]*samples[:,self.interactions[n][2]],tf.float32)
+            # if np.all(contrib)>0:
+            #     count+=1
+            # print(contrib)
+            eloc += contrib
+        # print(count)
+        # print(eloc)
         flip_logpsi = tf.zeros(shape=[tf.shape(samples)[0]])
         # Off-diagonal part
         for j in range(self.N):
@@ -107,6 +116,7 @@ class OneD_RNN_wavefxn(tf.keras.Model):
             flip_samples[:,j] = 1 - flip_samples[:,j]
             flip_logpsi = self.logpsi(flip_samples)
             eloc += -0.5*self.Omega * tf.math.exp(flip_logpsi-logpsi)
+        # print(eloc)
         return eloc
 
     """ Generate the square lattice structures """
