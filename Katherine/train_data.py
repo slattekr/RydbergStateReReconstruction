@@ -1,9 +1,8 @@
 import os
 import tensorflow as tf
 import numpy as np
-from dset_helpers import load_exact_Es,load_QMC_data,create_tf_dataset
+from dset_helpers import load_essiqurke_data,create_tf_essiqurke_dataset
 from OneD_RNN import OneD_RNN_wavefxn
-from helpers import save_path
 from plots import plot_E,plot_var,plot_loss
 import matplotlib.pyplot as plt
 
@@ -15,8 +14,7 @@ def Train_w_Data(config,energy,variance,cost):
     '''
 
     # System Parameters 
-    Lx = config['Lx']
-    Ly = config['Ly']
+    L = config['L']
     V = config['V']
     delta = config['delta']
     Omega = config['Omega']
@@ -24,29 +22,15 @@ def Train_w_Data(config,energy,variance,cost):
     # RNN Parameters
     num_hidden = config['nh']
     learning_rate = config['lr']
-    weight_sharing = config['weight_sharing']
     trunc = config['trunc']
     seed = config['seed']
 
     # Initiate RNN wave function
-    if config['RNN'] == 'OneD':
-        if config['Print'] ==True:
-            print(f"Training a one-D RNN wave function with {num_hidden} hidden units and shared weights.")
-        wavefxn = OneD_RNN_wavefxn(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed)
-    elif config['RNN'] =='TwoD':
-        if config['Print'] ==True:
-            print(f"Training a two-D RNN wave function with {num_hidden} hidden units and shared weights = {weight_sharing}.")
-        if config['MDGRU']:
-            print("Using GRU cell.")
-            wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDRNNGRUcell)
-        else:
-            wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDTensorizedRNNCell)
-    else:
-        raise ValueError(f"{config['RNN']} is not a valid option for the RNN wave function. Please choose OneD or TwoD.")
+    wavefxn = OneD_RNN_wavefxn(L,1,V,Omega,delta,num_hidden,learning_rate,trunc,seed)
 
     if config['Print'] ==True:
         print(f"The experimental parameters are: V = {V}, delta = {delta}, Omega = {Omega}.")
-        print(f"The system is an array of {Lx} by {Ly} Rydberg Atoms")
+        print(f"The system is a one-D chain of {L} Rydberg Atoms")
 
     @tf.function
     def train_step(input_batch):
@@ -54,7 +38,7 @@ def Train_w_Data(config,energy,variance,cost):
         with tf.GradientTape() as tape:
             logpsi = wavefxn.logpsi(input_batch)
             loss = - 2.0 * tf.reduce_mean(logpsi)
-        # Compute the gradients either with qmc_loss
+        # Compute the gradients
         gradients = tape.gradient(loss, wavefxn.trainable_variables)
         clipped_gradients = [tf.clip_by_value(g, -10., 10.) for g in gradients]
         # Update the parameters
@@ -66,20 +50,14 @@ def Train_w_Data(config,energy,variance,cost):
     batch_size = config['batch_size']
     data_step = config['data_step']
     epochs = config['Data_epochs']
-    exact_e = load_exact_Es(Lx)
-    data = load_QMC_data(Lx)
-    tf_dataset = create_tf_dataset(data,data_step)
-    #if config['scramble']:
-        #tf_dataset = data_scramble(tf_dataset)
+    data = load_essiqurke_data(L,delta,data_step)
+    tf_dataset = create_tf_essiqurke_dataset(data)
 
     for n in range(1, epochs+1):
-        #use data to update RNN weights
         dset = tf_dataset.shuffle(len(tf_dataset))
         dset = dset.batch(batch_size)
         loss = []
-
         for i, batch in enumerate(dset):
-            # Evaluate the loss function in AD mode
             batch_loss = train_step(batch)
             loss.append(batch_loss)
 
@@ -103,7 +81,8 @@ def Train_w_Data(config,energy,variance,cost):
     
     if config['Write_Data']==True:
         samples_final,_ = wavefxn.sample(10000)
-        path = config['save_path']
+        exp_name = config['name']
+        path = f'./results/L_{L}/delta_{delta}/'+exp_name
         if not os.path.exists(path):
             os.makedirs(path)
         with open(path+'/config.txt', 'w') as file:
@@ -111,10 +90,11 @@ def Train_w_Data(config,energy,variance,cost):
                 file.write(k+f'={v}\n')
         np.save(path+'/Energy',energy)
         np.save(path+'/Variance',variance)
+        np.save(path+'/Loss',cost)
         np.save(path+'/Samples',samples)
     
     if config['Plot']:
-        plot_E(energy, exact_e, wavefxn.N, epochs)
+        plot_E(energy, None, wavefxn.N, epochs)
         plot_var(variance, wavefxn.N, epochs)
         plot_loss(cost, wavefxn.N, epochs, loss_type='KL')
             

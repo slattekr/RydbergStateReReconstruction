@@ -36,7 +36,7 @@ def plot_var(variance, N, total_epochs,log_scale=False):
   plt.plot(variance,marker='o',markersize=2,linewidth=0.0,markevery=1,label="RNN variance")
   plt.xlabel("Step",fontsize=15)
   plt.ylabel("$\\sigma^{2}$",fontsize=20)
-  plt.ylim(-0.1,100)
+  #plt.ylim(-0.1,100)
   if log_scale:
     plt.yscale("log")
   plt.hlines(y=0,xmin=0,xmax=len(variance),color='k',label = "target variance")

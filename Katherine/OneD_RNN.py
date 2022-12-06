@@ -8,7 +8,6 @@ class OneD_RNN_wavefxn(tf.keras.Model):
     def __init__(self, Lx, Ly, 
                  V, Omega, delta,
                  num_hidden, learning_rate,
-                 weight_sharing = True,
                  trunc=2, seed=1234):
         
         super(OneD_RNN_wavefxn, self).__init__()
@@ -24,7 +23,6 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         self.nh       = num_hidden      # Number of hidden units in the RNN
         self.seed     = seed            # Seed of random number generator 
         self.K        = 2               # Dimension of the local Hilbert space
-        self.weight_sharing = weight_sharing # Option to share weights between RNN cells or not (always true for OneD RNN)
 
         # Set the seed of the rng
         tf.random.set_seed(self.seed)
