@@ -28,7 +28,7 @@ def plot_E(energy, exact_energy, N, total_epochs):
   print(f"The lowest energy achieved by the model was {lowest_energy}.")
   return final_energy
 
-def plot_var(variance, N, total_epochs,log_scale=False):
+def plot_var(variance, N, total_epochs,log_scale=False,limit=False):
   '''
   Plots the variance over epochs.
   '''
@@ -36,9 +36,10 @@ def plot_var(variance, N, total_epochs,log_scale=False):
   plt.plot(variance,marker='o',markersize=2,linewidth=0.0,markevery=1,label="RNN variance")
   plt.xlabel("Step",fontsize=15)
   plt.ylabel("$\\sigma^{2}$",fontsize=20)
-  plt.ylim(-0.1,100)
   if log_scale:
     plt.yscale("log")
+  if limit:
+    plt.ylim(-0.1,50)
   plt.hlines(y=0,xmin=0,xmax=len(variance),color='k',label = "target variance")
   plt.title("{} sites".format(N))
   plt.legend(loc="best")

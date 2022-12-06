@@ -13,7 +13,7 @@ def load_exact_Es(dim):
     return exact_e
 
 def load_QMC_data(dim):
-    path = "../QMC_data"
+    path = "../../QMC_data"
     dim_path = f"Dim={dim}_M=1000000_V=7_omega=1.0_delta=1.0" # Can change this to look at Dim = 4, 8, 12, 16
     files_we_want = glob.glob(os.path.join(path,dim_path,'samples*'))
     uploaded = {}

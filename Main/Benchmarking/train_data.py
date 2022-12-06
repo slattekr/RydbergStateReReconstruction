@@ -1,7 +1,9 @@
 import os
 import tensorflow as tf
 import numpy as np
-from dset_helpers import create_KZ_tf_dataset, data_given_param
+import sys
+sys.path.append('..')
+from dset_helpers import load_QMC_data,create_tf_dataset_from_QMCdata
 from OneD_RNN import OneD_RNN_wavefxn
 from TwoD_RNN import MDRNNWavefunction,MDTensorizedRNNCell,MDRNNGRUcell
 from energy_func import buildlattice,construct_mats,get_Rydberg_Energy_Vectorized
@@ -41,8 +43,8 @@ def Train_w_Data(config):
     ns = config['ns']
     batch_size = config['batch_size']
     epochs = config['Data_epochs']
-    data = data_given_param(sweep_rate,delta)
-    tf_dataset = create_KZ_tf_dataset(data)   
+    data = load_QMC_data(Lx)
+    tf_dataset = create_tf_dataset_from_QMCdata(data, data_step_size=100)
     global_step = tf.Variable(0, name="global_step") 
 
     # ---- Data Path ---------------------------------------------------------------------------
