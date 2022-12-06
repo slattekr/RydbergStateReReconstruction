@@ -181,10 +181,6 @@ class MDRNNWavefunction(object):
                             range(self.N)]
             self.dense = [tf.keras.layers.Dense(self.K, activation=tf.nn.softmax, name=f'RNNWF_dense_{i}', dtype=tf.float32) for
                             i in range(self.N)]
-        
-
-        # Generate the list of interactions
-        self.buildlattice()
 
         # Generate trainable variables
         self.sample(1,initial_pass=False)
@@ -213,7 +209,6 @@ class MDRNNWavefunction(object):
                 print(k, v1.shape)
                 sum += v1.shape[0]
             print(f'The sum of params is {sum}')
-
 
     def sample(self, numsamples,initial_pass=False):
         """
@@ -437,65 +432,67 @@ class MDRNNWavefunction(object):
         log_probs = tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.clip_by_value(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3), 1e-10, 1.0)),axis=2), axis=1)
 
         return log_probs
-    
-    # THE BELOW SHOULD NOT CHANGE FROM ONE D RNN WF
-    # TODO: vectorize this function, make tf.function to speed up calculations significantly
-    #@tf.function
-    def localenergy(self,samples,logpsi):
-        eloc = tf.zeros(shape=[tf.shape(samples)[0]],dtype=tf.float32)
 
-        # Chemical potential
-        for j in range(self.N):
-            eloc += - self.delta * tf.cast(samples[:,j],tf.float32)
+# Vectorized Energy Function, below no longer needed
+#--------------------------------------------------------------------------------------------------------------------------------
+    # # THE BELOW SHOULD NOT CHANGE FROM ONE D RNN WF
+    # # TODO: vectorize this function, make tf.function to speed up calculations significantly
+    # #@tf.function
+    # def localenergy(self,samples,logpsi):
+    #     eloc = tf.zeros(shape=[tf.shape(samples)[0]],dtype=tf.float32)
+
+    #     # Chemical potential
+    #     for j in range(self.N):
+    #         eloc += - self.delta * tf.cast(samples[:,j],tf.float32)
      
-        for n in range(len(self.interactions)):
-            eloc += (self.V/self.interactions[n][0]) * tf.cast(samples[:,self.interactions[n][1]]*samples[:,self.interactions[n][2]],tf.float32)
+    #     for n in range(len(self.interactions)):
+    #         eloc += (self.V/self.interactions[n][0]) * tf.cast(samples[:,self.interactions[n][1]]*samples[:,self.interactions[n][2]],tf.float32)
 
-        flip_logpsi = tf.zeros(shape=[tf.shape(samples)[0]])
+    #     flip_logpsi = tf.zeros(shape=[tf.shape(samples)[0]])
 
-        # Off-diagonal part
-        for j in range(self.N):
-            flip_samples = np.copy(samples)
-            flip_samples[:,j] = 1 - flip_samples[:,j]
-            flip_logpsi = self.logpsi(flip_samples,initial_pass=False)
-            eloc += -0.5*self.Omega * tf.math.exp(flip_logpsi-logpsi)
+    #     # Off-diagonal part
+    #     for j in range(self.N):
+    #         flip_samples = np.copy(samples)
+    #         flip_samples[:,j] = 1 - flip_samples[:,j]
+    #         flip_logpsi = self.logpsi(flip_samples,initial_pass=False)
+    #         eloc += -0.5*self.Omega * tf.math.exp(flip_logpsi-logpsi)
             
-        return eloc
+    #     return eloc
 
-    # Square Lattice
-    def coord_to_site(self,x,y):
-        return self.Ly*x+y
+    # # Square Lattice
+    # def coord_to_site(self,x,y):
+    #     return self.Ly*x+y
     
-    # All-to-all interactions unless truncation specified
-    def buildlattice(self):
-        self.interactions = []
+    # # All-to-all interactions unless truncation specified
+    # def buildlattice(self):
+    #     self.interactions = []
         
-        for n in range(1,self.Lx):
-            for n_ in range(n+1):
+    #     for n in range(1,self.Lx):
+    #         for n_ in range(n+1):
                 
-                if n+n_ > self.trunc:
-                    continue
+    #             if n+n_ > self.trunc:
+    #                 continue
         
-                else:
-                    for x in range(self.Lx-n_):
-                        for y in range(self.Ly-n):
-                            coeff = np.sqrt(n**2+n_**2)**6
-                            if n_ == 0 :
-                                self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x,y+n)])
-                            elif n == n_: 
-                                self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n,y+n)])
-                                self.interactions.append([coeff,self.coord_to_site(x+n,y),self.coord_to_site(x,y+n)])
-                            else:
-                                self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n_,y+n)])
-                                self.interactions.append([coeff,self.coord_to_site(x+n_,y),self.coord_to_site(x,y+n)])
+    #             else:
+    #                 for x in range(self.Lx-n_):
+    #                     for y in range(self.Ly-n):
+    #                         coeff = np.sqrt(n**2+n_**2)**6
+    #                         if n_ == 0 :
+    #                             self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x,y+n)])
+    #                         elif n == n_: 
+    #                             self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n,y+n)])
+    #                             self.interactions.append([coeff,self.coord_to_site(x+n,y),self.coord_to_site(x,y+n)])
+    #                         else:
+    #                             self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n_,y+n)])
+    #                             self.interactions.append([coeff,self.coord_to_site(x+n_,y),self.coord_to_site(x,y+n)])
                             
-                    for y in range(self.Ly-n_):
-                        for x in range(self.Lx-n):
-                            coeff = np.sqrt(n**2+n_**2)**6
-                            if n_ == 0 :
-                                self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n,y)])
-                            elif n == n_: 
-                                continue #already counted above
-                            else:
-                                self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n,y+n_)])
-                                self.interactions.append([coeff,self.coord_to_site(x,y+n_),self.coord_to_site(x+n,y)])
+    #                 for y in range(self.Ly-n_):
+    #                     for x in range(self.Lx-n):
+    #                         coeff = np.sqrt(n**2+n_**2)**6
+    #                         if n_ == 0 :
+    #                             self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n,y)])
+    #                         elif n == n_: 
+    #                             continue #already counted above
+    #                         else:
+    #                             self.interactions.append([coeff,self.coord_to_site(x,y),self.coord_to_site(x+n,y+n_)])
+    #                             self.interactions.append([coeff,self.coord_to_site(x,y+n_),self.coord_to_site(x+n,y)])

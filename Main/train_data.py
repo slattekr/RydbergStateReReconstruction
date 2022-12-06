@@ -4,7 +4,6 @@ import numpy as np
 from dset_helpers import create_KZ_tf_dataset, data_given_param
 from OneD_RNN import OneD_RNN_wavefxn
 from TwoD_RNN import MDRNNWavefunction,MDTensorizedRNNCell,MDRNNGRUcell
-from helpers import save_path
 from energy_func import buildlattice,construct_mats,get_Rydberg_Energy_Vectorized
 
 
@@ -148,9 +147,18 @@ def Train_w_Data(config):
             print(f"Variance = {var_E}")
             print(" ")
 
-        if (config['CKPT']) & (n%50 == 0):
-            manager.save()
-            print(f"Saved checkpoint for step {n} in {path}.")
+        if (config['CKPT']) & (n%10 == 0): # checkpoint frequently
+            if n==10:
+                var_E_past = 10000
+            var_E_current = var_E
+            if var_E_current < var_E_past:
+                manager.save()
+                print(f"Saved checkpoint for step {n} in {path}.")
+                var_E_past = var_E_current
+            else:
+                print("Variance exploding. Earlier ckpt kept.")
+                var_E_past = 0.0
+                continue
 
         if (config['Write_Data']) & (n%50 == 0):
             print(f"Saved training quantitites for step {n} in {path}.")
@@ -170,5 +178,4 @@ def Train_w_Data(config):
         np.save(path+'/Cost',cost)
         np.save(path+'/Samples',samples_final)
 
-            
     return wavefxn, energy, variance,cost
