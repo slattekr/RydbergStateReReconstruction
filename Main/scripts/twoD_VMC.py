@@ -40,7 +40,6 @@ def main():
         'MDGRU':True,
         'VMC_epochs':1000,
         'Data_epochs':0,
-        'dset': None,
         
         'ns': 1000,
         'batch_size': 100,
@@ -48,7 +47,7 @@ def main():
         
         'Print':False,
         'Write_Data': True,
-        'Plot': False
+        'CKPT':True
         }
     
     return Train_w_VMC(config,energy,variance,cost)

@@ -47,7 +47,7 @@ def main():
         
         'Print':False,
         'Write_Data': True,
-        'Plot': False
+        'CKPT': True
         }
     
     return Train_w_VMC(config,energy,variance,cost)

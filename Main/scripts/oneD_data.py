@@ -44,7 +44,7 @@ def main():
         
         'Print':True,
         'Write_Data': True,
-        'Plot': False
+        'CKPT':True
         }
     
     return Train_w_Data(config,energy,variance,cost)

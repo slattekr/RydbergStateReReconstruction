@@ -100,11 +100,12 @@ def Train_w_VMC(config):
         if manager.latest_checkpoint:
             print("CKPT ON and ckpt found.")
             print("Restored from {}".format(manager.latest_checkpoint))
+            latest_ckpt = ckpt.step.numpy()
             optimizer_initializer(wavefxn.optimizer)
             print(f"Continuing at step {ckpt.step.numpy()}")
-            energy = np.load(path+'/Energy.npy').tolist()
-            variance = np.load(path+'/Variance.npy').tolist()
-            cost = np.load(path+'/Cost.npy').tolist()
+            energy = np.load(path+'/Energy.npy').tolist()[0:latest_ckpt]
+            variance = np.load(path+'/Variance.npy').tolist()[0:latest_ckpt]
+            cost = np.load(path+'/Cost.npy').tolist()[0:latest_ckpt]
 
         else:
             print("CKPT ON but no ckpt found. Initializing from scratch.")
@@ -124,6 +125,7 @@ def Train_w_VMC(config):
     for n in range(it+1, epochs+1):
         samples, _ = wavefxn.sample(ns)
         sample_loss = train_step(samples)
+        
         global_step.assign_add(1)
         
         #append the energy to see convergence
