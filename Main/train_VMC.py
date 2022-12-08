@@ -141,7 +141,7 @@ def Train_w_VMC(config):
         variance.append(var_E)
         cost.append(avg_loss)
 
-        if (config['Print']):
+        if (config['Print']) & (n%50 == 0):
             print(f"Step #{n}")
             print(f"Energy = {avg_E}")
             print(f"Variance = {var_E}")

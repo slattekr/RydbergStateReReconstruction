@@ -13,12 +13,6 @@ V0 = Rb**6 * Omega
 sweep_rate = 15
 low = -1.545
 
-from train_VMC import Train_w_VMC
-
-energy = []
-variance = []
-cost = []
-
 def main():
     config = {
         'name': 'TwoD_VMC_lowdelta', # A very random name for each experiment
@@ -45,12 +39,12 @@ def main():
         'batch_size': 100,
         'data_step': 100,
         
-        'Print':False,
+        'Print':True,
         'Write_Data': True,
         'CKPT':True
         }
     
-    return Train_w_VMC(config,energy,variance,cost)
+    return Train_w_VMC(config)
 
 
 if __name__ == "__main__":

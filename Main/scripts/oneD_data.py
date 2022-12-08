@@ -13,10 +13,6 @@ V0 = Rb**6 * Omega
 sweep_rate = 15
 low = -1.545
 
-energy = []
-variance = []
-cost = []
-
 def main():
     config = {
         'name': 'OneD_data_lowdelta', # A very random name for each experiment
@@ -36,7 +32,7 @@ def main():
         
         'RNN': 'OneD',
         'VMC_epochs':0,
-        'Data_epochs':500,
+        'Data_epochs':1000,
         
         'ns': 1000,
         'batch_size': 100,
@@ -47,7 +43,7 @@ def main():
         'CKPT':True
         }
     
-    return Train_w_Data(config,energy,variance,cost)
+    return Train_w_Data(config)
 
 
 if __name__ == "__main__":
