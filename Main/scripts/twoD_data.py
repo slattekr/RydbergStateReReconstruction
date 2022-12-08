@@ -3,7 +3,7 @@ import tensorflow as tf
 import sys
 sys.path.append('..')
 from dset_helpers import data_given_param
-from train_VMC import Train_w_VMC
+from train_data import Train_w_Data
 
 Lx = 16
 Ly = 16
@@ -44,7 +44,7 @@ def main():
         'CKPT': True
         }
     
-    return Train_w_VMC(config)
+    return Train_w_Data(config)
 
 
 if __name__ == "__main__":
