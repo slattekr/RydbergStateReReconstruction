@@ -15,7 +15,7 @@ low = -1.545
 
 def main():
     config = {
-        'name': 'TwoD_VMC_lowdelta', # A very random name for each experiment
+        'name': 'TwoD_VMC_lowdelta_longer', # A very random name for each experiment
 
         'Lx': Lx,  # number of sites in x-direction                    
         'Ly': Ly,  # number of sites in the y-direction
@@ -32,7 +32,7 @@ def main():
         
         'RNN': 'TwoD',
         'MDGRU':True,
-        'VMC_epochs':1000,
+        'VMC_epochs':5000,
         'Data_epochs':0,
         
         'ns': 1000,

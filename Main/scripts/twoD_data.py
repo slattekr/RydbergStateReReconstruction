@@ -15,7 +15,7 @@ low = -1.545
 
 def main():
     config = {
-        'name': 'TwoD_data_lowdelta', # A very random name for each experiment
+        'name': 'TwoD_data_lowdelta_longer', # A very random name for each experiment
 
         'Lx': Lx,  # number of sites in x-direction                    
         'Ly': Ly,  # number of sites in the y-direction
@@ -25,7 +25,7 @@ def main():
         'sweep_rate':sweep_rate,
         
         'nh': 16,  # number of memory/hidden units
-        'lr': 1e-4,  # learning rate
+        'lr': 1e-6,  # learning rate
         'weight_sharing': True,
         'trunc': 100,
         'seed': 1234,
@@ -33,7 +33,7 @@ def main():
         'RNN': 'TwoD',
         'MDGRU':True,
         'VMC_epochs':0,
-        'Data_epochs':500,
+        'Data_epochs':1000,
         
         'ns': 1000,
         'batch_size': 100,

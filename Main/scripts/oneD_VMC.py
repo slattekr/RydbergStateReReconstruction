@@ -1,5 +1,7 @@
 import numpy as np
 import tensorflow as tf
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
 import sys
 sys.path.append('..')
 from dset_helpers import data_given_param
@@ -17,8 +19,8 @@ def main():
     config = {
         'name': 'OneD_VMC_lowdelta', # A very random name for each experiment
 
-        'Lx': Lx,  # number of sites in x-direction                    
-        'Ly': Ly,  # number of sites in the y-direction
+        'Lx':Lx,  # number of sites in x-direction                    
+        'Ly':Ly,  # number of sites in the y-directioni
         'V': V0,
         'Omega': Omega,
         'delta': low,

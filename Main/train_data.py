@@ -1,5 +1,7 @@
 import os
 import tensorflow as tf
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
 import numpy as np
 from dset_helpers import create_KZ_tf_dataset, data_given_param
 from OneD_RNN import OneD_RNN_wavefxn
@@ -105,6 +107,7 @@ def Train_w_Data(config):
             print("CKPT ON and ckpt found.")
             print("Restored from {}".format(manager.latest_checkpoint))
             latest_ckpt = ckpt.step.numpy()
+            start_from_ckpt = True
             optimizer_initializer(wavefxn.optimizer)
             print(f"Continuing at step {ckpt.step.numpy()}")
             energy = np.load(path+'/Energy.npy').tolist()[0:latest_ckpt]
@@ -113,12 +116,16 @@ def Train_w_Data(config):
 
         else:
             print("CKPT ON but no ckpt found. Initializing from scratch.")
+            latest_ckpt = 0
+            start_from_ckpt = False
             energy = []
             variance = []
             cost = []
 
     else:
         print("CKPT OFF. Initializing from scratch.")
+        start_from_ckpt = False
+        latest_ckpt = 0
         energy = []
         variance = []
         cost = []
@@ -160,7 +167,7 @@ def Train_w_Data(config):
         if (config['CKPT']) & (n%10 == 0): # checkpoint frequently during data training
             if n==10:
                 var_E_past = 10000
-            elif n==latest_ckpt+10:
+            elif (start_from_ckpt==True) & (n==latest_ckpt+10):
                 var_E_past = np.mean(variance[-10:])+0.1
             var_E_current = var_E
             print(var_E_current,' VS ',var_E_past)
