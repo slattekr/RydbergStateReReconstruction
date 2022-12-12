@@ -165,21 +165,9 @@ def Train_w_Data(config):
             print(" ")
 
         if (config['CKPT']) & (n%10 == 0): # checkpoint frequently during data training
-            if n==10:
-                var_E_past = 10000
-            elif (start_from_ckpt==True) & (n==latest_ckpt+10):
-                var_E_past = np.mean(variance[-10:])+0.1
-            var_E_current = var_E
-            print(var_E_current,' VS ',var_E_past)
-            if var_E_current < var_E_past:
-                manager.save()
-                print(f"Saved checkpoint for step {n} in {path}.")
-                var_E_past = np.mean(variance[-10:])+0.1
-            else:
-                print("Variance exploding. Earlier ckpt kept.")
-                var_E_past = 0
-                continue
-
+            manager.save()
+            print(f"Saved checkpoint for step {n} in {path}.")
+        
         if (config['Write_Data']) & (n%10 == 0): # need to save training quantities each time we checkpoint
             print(f"Saved training quantitites for step {n} in {path}.")
             np.save(path+'/Energy',energy)
