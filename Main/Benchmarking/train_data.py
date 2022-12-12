@@ -4,7 +4,7 @@ import numpy as np
 import sys
 sys.path.append('..')
 from dset_helpers import load_QMC_data,create_tf_dataset_from_QMCdata
-from OneD_RNN import OneD_RNN_wavefxn
+from OneD_RNN import OneD_RNN_wavefxn, RNNWavefunction1D
 from TwoD_RNN import MDRNNWavefunction,MDTensorizedRNNCell,MDRNNGRUcell
 from energy_func import buildlattice,construct_mats,get_Rydberg_Energy_Vectorized
 
@@ -60,7 +60,8 @@ def Train_w_Data(config):
     if config['RNN'] == 'OneD':
         if config['Print'] ==True:
             print(f"Training a one-D RNN wave function with {num_hidden} hidden units and shared weights.")
-        wavefxn = OneD_RNN_wavefxn(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed)
+        # wavefxn = OneD_RNN_wavefxn(Lx,Ly,num_hidden,learning_rate,seed)
+        wavefxn = RNNWavefunction1D(Lx,Ly,num_hidden,learning_rate,seed)
     elif config['RNN'] =='TwoD':
         if config['Print'] ==True:
             print(f"Training a two-D RNN wave function with {num_hidden} hidden units and shared weights = {weight_sharing}.")
