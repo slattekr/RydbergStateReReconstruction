@@ -318,7 +318,7 @@ class MDRNNWavefunction(object):
         samples = tf.transpose(samples, perm=[2, 0, 1])
         probs = tf.transpose(tf.stack(values=probs, axis=0), perm=[2, 0, 1, 3])
         one_hot_samples = tf.one_hot(samples, depth=self.K, dtype=tf.float32)
-        log_probs = tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3)), axis=2), axis=1)
+        log_probs = 0.5 * tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3)), axis=2), axis=1)
         full_samples = tf.reshape(samples,(numsamples,self.Lx*self.Ly)) 
         if initial_pass:
             xs = tf.stack(values=xs,axis=1)
@@ -429,7 +429,7 @@ class MDRNNWavefunction(object):
             # this assertion shows that we are manipulating probs/samples correctly
             assert(np.all(samples_reconstructed.numpy()==samples_.numpy()))
         one_hot_samples = tf.one_hot(samples_, depth=self.K, dtype=tf.float32)
-        log_probs = tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.clip_by_value(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3), 1e-10, 1.0)),axis=2), axis=1)
+        log_probs = 0.5 * tf.reduce_sum(tf.reduce_sum(tf.math.log(tf.clip_by_value(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=3), 1e-10, 1.0)),axis=2), axis=1)
 
         return log_probs
 

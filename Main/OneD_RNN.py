@@ -1,7 +1,7 @@
 import numpy as np 
 import tensorflow as tf 
-physical_devices = tf.config.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(physical_devices[0], True)
+# physical_devices = tf.config.list_physical_devices('GPU')
+# tf.config.experimental.set_memory_growth(physical_devices[0], True)
 import random
 
 class OneD_RNN_wavefxn(tf.keras.Model):
@@ -12,6 +12,7 @@ class OneD_RNN_wavefxn(tf.keras.Model):
                  seed=1234):
         
         super(OneD_RNN_wavefxn, self).__init__()
+        print("OneD RNN used in previous Rydberg project.")
 
         """ PARAMETERS """
         self.Lx       = Lx              # Size along x
@@ -39,7 +40,8 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         self.dense = tf.keras.layers.Dense(self.K, activation = tf.nn.softmax,
                                            kernel_regularizer = tf.keras.regularizers.l2(0.001))
 
-        self.sample(1)
+        sample,_ = self.sample(1)
+        self.logpsi(sample)
         self.trainable_variables_ = []
         self.trainable_variables_.extend(self.rnn.trainable_variables)
         self.trainable_variables_.extend(self.dense.trainable_variables)
@@ -75,14 +77,16 @@ class OneD_RNN_wavefxn(tf.keras.Model):
     def logpsi(self,samples):
         num_samples = samples.shape[0]
         data = tf.one_hot(samples[:,0:self.N-1],depth=self.K)
-        x0 = 0.0*tf.one_hot(tf.zeros(shape=[num_samples,1],dtype=tf.int32),depth=self.K) #initialization
+        # x0 = 0.0*tf.one_hot(tf.zeros(shape=[num_samples,1],dtype=tf.int32),depth=self.K) #initialization
+        x0 = tf.zeros(shape=[num_samples,1,self.K],dtype=tf.float32)
         inputs = tf.concat([x0,data],axis=1)
         hidden_state = tf.zeros(shape=[num_samples,self.nh])
         rnn_output,_ = self.rnn(inputs,initial_state = hidden_state)
         probs        = self.dense(rnn_output)
         one_hot_samples = tf.one_hot(samples,depth=self.K,axis=2)
         log_probs   = tf.reduce_sum(tf.multiply(tf.math.log(1e-10+probs),one_hot_samples),axis=2)
-        return 0.5 * tf.reduce_sum(log_probs, axis=1)
+        log_probs_return = 0.5 * tf.reduce_sum(log_probs, axis=1)
+        return log_probs_return
 
 
 class RNNWavefunction1D(tf.keras.Model):
@@ -91,6 +95,7 @@ class RNNWavefunction1D(tf.keras.Model):
                  seed=1234):
         
         super(RNNWavefunction1D, self).__init__()
+        print("OneD RNN adapted from Heisenberg-Kagome project.")
 
         """
             systemsize:             int
@@ -117,12 +122,13 @@ class RNNWavefunction1D(tf.keras.Model):
         self.N        = self.Lx * self.Ly
         self.nh       = num_hidden      # Number of hidden units in the RNN
         self.local_hilbert_space = 2               # Dimension of the local Hilbert space
-        random.seed(seed)  # `python` built-in pseudo-random generator
-        np.random.seed(seed)  # numpy pseudo-random generator
-        self.optimizer = tf.optimizers.Adam(learning_rate, epsilon=1e-8)
+        self.seed     = seed
 
-        # Defining the neural network
-        tf.compat.v1.set_random_seed(seed)  # tensorflow pseudo-random generator
+        # Set the seed of the rng
+        tf.random.set_seed(self.seed)
+
+        # Optimizer
+        self.optimizer = tf.optimizers.Adam(learning_rate, epsilon=1e-8) 
 
         # Defining RNN cells with site-dependent parameters
         self.rnn = tf.keras.layers.GRU(self.nh, kernel_initializer='glorot_uniform',
@@ -183,7 +189,7 @@ class RNNWavefunction1D(tf.keras.Model):
         samples = tf.stack(values=samples, axis=1)
         probs = tf.transpose(tf.stack(values=probs, axis=2), perm=[0, 2, 1])
         one_hot_samples = tf.one_hot(samples, depth=self.local_hilbert_space, dtype=tf.float32)
-        log_probs = tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=2)), axis=1)
+        log_probs = 0.5*tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=2)), axis=1)
         samples = tf.cast(samples, dtype=tf.float32)
         return samples, log_probs
 
@@ -204,12 +210,12 @@ class RNNWavefunction1D(tf.keras.Model):
                              the log-probability of each sample
             """
         numsamples = samples.shape[0]
-        samples_so_far = []
         probs = []
         samples = tf.cast(samples, dtype=tf.int32)
         inputs = tf.zeros((numsamples,1, self.local_hilbert_space), dtype=tf.float32)  # Feed the table b in tf.
         rnn_state = self.rnn.get_initial_state(inputs)
 
+        # Logic in H-K version
         for n in range(self.N):
             rnn_output, rnn_state = self.rnn(inputs, rnn_state)
             output_prob = tf.squeeze(self.dense(rnn_output))
@@ -221,7 +227,16 @@ class RNNWavefunction1D(tf.keras.Model):
 
         probs = tf.transpose(tf.stack(values=probs, axis=2), perm=[0, 2, 1])
         one_hot_samples = tf.one_hot(samples, depth=self.local_hilbert_space, dtype=tf.float32)
-        log_probs = tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=2)), axis=1)
+        log_probs = 0.5 * tf.reduce_sum(tf.math.log(tf.reduce_sum(tf.multiply(probs, one_hot_samples), axis=2)), axis=1)
+
+        # # Logic in old version
+        # data = tf.one_hot(samples[:,0:self.N-1],depth=self.K)
+        # x0 = tf.zeros(shape=[num_samples,1,self.K],dtype=tf.float32)
+        # inputs_old = tf.concat([x0,data],axis=1)
+        # hidden_state = tf.zeros(shape=[num_samples,self.nh])
+        # rnn_output,_ = self.rnn(inputs_old,initial_state = hidden_state)
+        # probs_old    = self.dense(rnn_output)
+        # log_probs   = 0.5 * tf.reduce_sum(tf.reduce_sum(tf.multiply(tf.math.log(1e-10+probs),one_hot_samples),axis=2), axis=1)
 
         return log_probs
 

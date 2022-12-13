@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
-physical_devices = tf.config.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(physical_devices[0], True)
+# physical_devices = tf.config.list_physical_devices('GPU')
+# tf.config.experimental.set_memory_growth(physical_devices[0], True)
 import numpy as np
 from dset_helpers import load_exact_Es
 from OneD_RNN import OneD_RNN_wavefxn, RNNWavefunction1D
@@ -57,8 +57,11 @@ def Train_w_VMC(config):
     if config['RNN'] == 'OneD':
         if config['Print'] ==True:
             print(f"Training a one-D RNN wave function with {num_hidden} hidden units and shared weights.")
-        wavefxn = OneD_RNN_wavefxn(Lx,Ly,num_hidden,learning_rate,seed)
-        # wavefxn = RNNWavefunction1D(Lx,Ly,num_hidden,learning_rate,seed)
+        OneD_RNN_version = config.get('version', 'Old')
+        if OneD_RNN_version=='New':
+            wavefxn = RNNWavefunction1D(Lx,Ly,num_hidden,learning_rate,seed)
+        else:
+            wavefxn = OneD_RNN_wavefxn(Lx,Ly,num_hidden,learning_rate,seed)
     elif config['RNN'] =='TwoD':
         if config['Print'] ==True:
             print(f"Training a two-D RNN wave function with {num_hidden} hidden units and shared weights = {weight_sharing}.")

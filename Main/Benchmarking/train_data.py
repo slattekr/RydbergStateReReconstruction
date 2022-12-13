@@ -60,8 +60,11 @@ def Train_w_Data(config):
     if config['RNN'] == 'OneD':
         if config['Print'] ==True:
             print(f"Training a one-D RNN wave function with {num_hidden} hidden units and shared weights.")
-        # wavefxn = OneD_RNN_wavefxn(Lx,Ly,num_hidden,learning_rate,seed)
-        wavefxn = RNNWavefunction1D(Lx,Ly,num_hidden,learning_rate,seed)
+        OneD_RNN_version = config.get('version', 'Old')
+        if OneD_RNN_version=='New':
+            wavefxn = RNNWavefunction1D(Lx,Ly,num_hidden,learning_rate,seed)
+        else:
+            wavefxn = OneD_RNN_wavefxn(Lx,Ly,num_hidden,learning_rate,seed)
     elif config['RNN'] =='TwoD':
         if config['Print'] ==True:
             print(f"Training a two-D RNN wave function with {num_hidden} hidden units and shared weights = {weight_sharing}.")
@@ -91,7 +94,7 @@ def Train_w_Data(config):
         with tf.GradientTape() as tape:
             logpsi = wavefxn.logpsi(input_batch)
             loss = - 2.0 * tf.reduce_mean(logpsi)
-        # Compute the gradients either with qmc_loss
+        # Compute the gradients either with KL
         gradients = tape.gradient(loss, wavefxn.trainable_variables)
         clipped_gradients = [tf.clip_by_value(g, -10., 10.) for g in gradients]
         # Update the parameters
@@ -161,20 +164,8 @@ def Train_w_Data(config):
             print(" ")
 
         if (config['CKPT']) & (n%10 == 0): # checkpoint frequently during data training
-            if n==10:
-                var_E_past = 10000
-            elif n==latest_ckpt+10:
-                var_E_past = np.mean(variance[-10:])+0.1
-            var_E_current = var_E
-            print(var_E_current,' VS ',var_E_past)
-            if var_E_current < var_E_past:
-                manager.save()
-                print(f"Saved checkpoint for step {n} in {path}.")
-                var_E_past = np.mean(variance[-10:])+0.1
-            else:
-                print("Variance exploding. Earlier ckpt kept.")
-                var_E_past = 0
-                continue
+            manager.save()
+            print(f"Saved checkpoint for step {n} in {path}.")
 
         if (config['Write_Data']) & (n%10 == 0): # need to save training quantities each time we checkpoint
             print(f"Saved training quantitites for step {n} in {path}.")
