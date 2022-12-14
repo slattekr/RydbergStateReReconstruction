@@ -41,7 +41,14 @@ def Train_w_Data(config):
 
     # ---- Training Parameters ----------------------------------------------------------------
     ns = config['ns']
-    batch_size = config['batch_size']
+    batch_samples = config.get('batch_samples', False)
+    if batch_samples:
+        batch_size_samples = config.get('batch_size_samples', 100)
+        print(f"Batching samples drawn from RNN with batch size = {batch_size_samples}")
+    else:
+        batch_size_samples = ns
+        print(f"Not batching samples drawn from RNN, meaning batch size = {ns}")
+    batch_size_data = config.get('batch_size_data', 100)
     epochs = config['Data_epochs']
     data = load_QMC_data(Lx)
     tf_dataset = create_tf_dataset_from_QMCdata(data, data_step_size=100)
@@ -135,7 +142,7 @@ def Train_w_Data(config):
     for n in range(it+1, epochs+1):
         #use data to update RNN weights
         dset = tf_dataset.shuffle(len(tf_dataset))
-        dset = dset.batch(batch_size)
+        dset = dset.batch(batch_size_data)
         loss = []
 
         for i, batch in enumerate(dset):
@@ -148,9 +155,13 @@ def Train_w_Data(config):
         #append the energy to see convergence
         avg_loss = np.mean(loss)
         samples, _ = wavefxn.sample(ns)
-        sample_logpsi = wavefxn.logpsi(samples)
-        sample_eloc = Ryd_Energy_Function(Omega_tf,delta_tf,V0_tf,O_mat,V_mat,coeffs,samples,sample_logpsi)
-        energies = sample_eloc.numpy()
+        samples_tf = tf.data.Dataset.from_tensor_slices(samples)
+        samples_tf = samples_tf.batch(batch_size_samples)
+        energies = []
+        for i, batch in enumerate(samples_tf):
+            batch_logpsi = wavefxn.logpsi(batch)
+            sample_eloc = Ryd_Energy_Function(Omega_tf,delta_tf,V0_tf,O_mat,V_mat,coeffs,batch,batch_logpsi)
+            energies.append(sample_eloc.numpy())
         avg_E = np.mean(energies)/float(wavefxn.N)
         var_E = np.var(energies)/float(wavefxn.N)
         energy.append(avg_E)
