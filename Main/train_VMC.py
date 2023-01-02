@@ -52,7 +52,7 @@ def Train_w_VMC(config):
 
     # ---- Data Path ---------------------------------------------------------------------------
     exp_name = config['name']
-    path = f'./data/N_{Lx*Ly}/delta_{delta}/{rnn_type}_rnn/{exp_name}'
+    path = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}'
     if not os.path.exists(path):
         os.makedirs(path)
     with open(path+'/config.txt', 'w') as file:
