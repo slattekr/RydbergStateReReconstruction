@@ -13,7 +13,7 @@ nvidia-smi
 
 export TF_GPU_ALLOCATOR=cuda_malloc_async
 
-source ReconstructRydberg/bin/activate
+source ../ReconstructRydberg/bin/activate
 
 python 8.455_vmc.py && python 8.955_vmc.py && python 9.455_vmc.py && python 9.955_vmc.py
 
