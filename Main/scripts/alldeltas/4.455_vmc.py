@@ -15,7 +15,7 @@ delta = 4.455
 
 def main():
     config = {
-        'name': 'OneD_VMC_alldeltas_nh64',
+        'name': 'OneD_VMC_alldeltas_nh40',
 
         'Lx': Lx,  # number of sites in x-direction                    
         'Ly': Ly,  # number of sites in the y-direction
@@ -24,7 +24,7 @@ def main():
         'delta': delta,
         'sweep_rate':sweep_rate,
         
-        'nh': 64,  # number of memory/hidden units
+        'nh': 40,  # number of memory/hidden units
         'lr': 1e-3,  # learning rate
         'weight_sharing': True,
         'trunc': 100,
