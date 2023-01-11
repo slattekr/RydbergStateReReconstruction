@@ -110,7 +110,7 @@ def Train_w_Data(config):
 
     # ---- Start From CKPT or Scratch -------------------------------------------------------------
     ckpt = tf.train.Checkpoint(step=global_step, optimizer=wavefxn.optimizer, variables=wavefxn.trainable_variables)
-    manager = tf.train.CheckpointManager(ckpt, path, max_to_keep=1)
+    manager = tf.train.CheckpointManager(ckpt, path, max_to_keep=None) # will keep checkpoints for every step
 
     if config['CKPT']:
         ckpt.restore(manager.latest_checkpoint)
@@ -187,15 +187,5 @@ def Train_w_Data(config):
             np.save(path+'/Energy',energy)
             np.save(path+'/Variance',variance)
             np.save(path+'/Cost',cost)
-            np.save(path+'/Samples',[])
-    
-    # ---- Final Save -----------------------------------------------------------------------------------
-    if config['Write_Data']:
-        print(f"Saved training quantities for the FINAL step {n} in {path}.")
-        samples_final,_ = wavefxn.sample(10000)
-        np.save(path+'/Energy',energy)
-        np.save(path+'/Variance',variance)
-        np.save(path+'/Cost',cost)
-        np.save(path+'/Samples',samples_final)
 
     return wavefxn, energy, variance,cost
