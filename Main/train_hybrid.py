@@ -156,7 +156,7 @@ def Train_w_Data_then_VMC(config):
     # ---- Train ----------------------------------------------------------------------------------
     it = global_step.numpy()
 
-    for n in range(it+1, epochs+1):
+    for n in range(it+1,epochs+1):
         samples, _ = wavefxn.sample(ns)
         samples_tf = tf.data.Dataset.from_tensor_slices(samples)
         samples_tf = samples_tf.batch(batch_size_samples)
