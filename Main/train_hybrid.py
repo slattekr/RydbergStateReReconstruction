@@ -111,29 +111,30 @@ def Train_w_Data_then_VMC(config):
 
     # ---- Start From CKPT or Scratch -------------------------------------------------------------
     ckpt = tf.train.Checkpoint(step=global_step, optimizer=wavefxn.optimizer, variables=wavefxn.trainable_variables) # these are trackable objects - we get to specify
-    manager = tf.train.CheckpointManager(ckpt, path_old, max_to_keep=1)
+    manager_old = tf.train.CheckpointManager(ckpt, path_old, max_to_keep=1)
+    manager_new = tf.train.CheckpointManager(ckpt, path_new, max_to_keep=1)
 
     if config['CKPT']: # will start from a specified starting point OR from the latest checkpoint if specified checkpoint not found OR from scratch if neither are found
         restart_point = data_epochs
         index = int((restart_point-(restart_point%10))/10 - 1)
-        if index < len(manager.checkpoints):
-            ckpt.restore(manager.checkpoints[index])
+        if index < len(manager_old.checkpoints):
+            ckpt.restore(manager_old.checkpoints[index])
             ckpt_found = True
         else:
-            manager.latest_checkpoint
+            manager_old.latest_checkpoint
             ckpt_found = False
         if ckpt_found:
             print(f"CKPT ON and ckpt {index} found.")
-            print("Restored from {}".format(manager.checkpoints[index]))
+            print("Restored from {}".format(manager_old.checkpoints[index]))
             ckpt_step = ckpt.step.numpy()
             optimizer_initializer(wavefxn.optimizer)
             print(f"Continuing at step {ckpt.step.numpy()}")
             energy = np.load(path_old+'/Energy.npy').tolist()[0:ckpt_step]
             variance = np.load(path_old+'/Variance.npy').tolist()[0:ckpt_step]
             cost = np.load(path_old+'/Cost.npy').tolist()[0:ckpt_step]
-        elif manager.latest_checkpoint:
+        elif manager_old.latest_checkpoint:
             print(f"CKPT ON but ckpt {index} not found.")
-            print("Restored from {}".format(manager.latest_checkpoint))
+            print("Restored from {}".format(manager_old.latest_checkpoint))
             latest_ckpt = ckpt.step.numpy()
             optimizer_initializer(wavefxn.optimizer)
             print(f"Continuing at step {ckpt.step.numpy()}")
@@ -156,7 +157,7 @@ def Train_w_Data_then_VMC(config):
     # ---- Train ----------------------------------------------------------------------------------
     it = global_step.numpy()
 
-    for n in range(it+1, epochs+1):
+    for n in range(it+1, total_epochs+1):
         samples, _ = wavefxn.sample(ns)
         samples_tf = tf.data.Dataset.from_tensor_slices(samples)
         samples_tf = samples_tf.batch(batch_size_samples)
@@ -191,7 +192,7 @@ def Train_w_Data_then_VMC(config):
             print(" ")
 
         if (config['CKPT']) & (n%50 == 0):
-            manager.save()
+            manager_new.save()
             print(f"Saved checkpoint for step {n} in {path_new}.")
 
         if (config['Write_Data']) & (n%50 == 0):
