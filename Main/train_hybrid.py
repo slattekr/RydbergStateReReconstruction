@@ -3,8 +3,8 @@ import tensorflow as tf
 physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
 import numpy as np
-from dset_helpers import load_exact_Es
-from OneD_RNN import OneD_RNN_wavefxn, RNNWavefunction1D
+from dset_helpers import create_KZ_tf_dataset, data_given_param
+from OneD_RNN import OneD_RNN_wavefxn,RNNWavefunction1D
 from TwoD_RNN import MDRNNWavefunction,MDTensorizedRNNCell,MDRNNGRUcell
 from energy_func import buildlattice,construct_mats,get_Rydberg_Energy_Vectorized
 
@@ -16,7 +16,7 @@ def optimizer_initializer(optimizer):
     # Ask the optimizer to apply the processed gradients.
     optimizer.apply_gradients(zip(grads, [fake_var]))
 
-def Train_w_VMC(config):
+def Train_w_Data_then_VMC(config):
 
     '''
     Run RNN using vmc sampling or qmc data. If qmc_data is None, uses vmc sampling. 
@@ -29,6 +29,7 @@ def Train_w_VMC(config):
     V = config['V']
     delta = config['delta']
     Omega = config['Omega']
+    sweep_rate = config['sweep_rate']
 
     # ---- RNN Parameters ---------------------------------------------------------------------
     num_hidden = config['nh']
@@ -47,15 +48,19 @@ def Train_w_VMC(config):
     else:
         batch_size_samples = ns
         print(f"Not batching samples drawn from RNN, meaning batch size = {ns}")
-    epochs = config['VMC_epochs']
-    global_step = tf.Variable(0, name="global_step")
+    batch_size_data = config.get('batch_size_data', 100)
+    data_epochs = config['Data_epochs']
+    vmc_epochs = config['VMC_epochs']
+    total_epochs = data_epochs+vmc_epochs
+    global_step = tf.Variable(0, name="global_step") 
 
     # ---- Data Path ---------------------------------------------------------------------------
     exp_name = config['name']
-    path = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}'
-    if not os.path.exists(path):
-        os.makedirs(path)
-    with open(path+'/config.txt', 'w') as file:
+    path_old = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}'
+    path_new = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}/hybrid_training/{data_epochs}_datasteps'
+    if not os.path.exists(path_new):
+        os.makedirs(path_new)
+    with open(path_new+'/config.txt', 'w') as file:
         for k,v in config.items():
             file.write(k+f'={v}\n')
 
@@ -72,6 +77,7 @@ def Train_w_VMC(config):
         if config['Print'] ==True:
             print(f"Training a two-D RNN wave function with {num_hidden} hidden units and shared weights = {weight_sharing}.")
         if config['MDGRU']:
+            print("Using GRU cell.")
             wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDRNNGRUcell)
         else:
             wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDTensorizedRNNCell)
@@ -80,7 +86,7 @@ def Train_w_VMC(config):
 
     if config['Print'] ==True:
         print(f"The experimental parameters are: V = {V}, delta = {delta}, Omega = {Omega}.")
-        print(f"The system is an array of {Lx} by {Ly} Rydberg Atoms.")
+        print(f"The system is an array of {Lx} by {Ly} Rydberg Atoms")
 
     # ---- Define Train Step --------------------------------------------------------------------
     interaction_list = buildlattice(Lx,Ly,trunc)
@@ -89,9 +95,9 @@ def Train_w_VMC(config):
     Omega_tf = tf.constant(Omega)
     delta_tf = tf.constant(delta)
     V0_tf = tf.constant(V)
-
+    
     @tf.function
-    def train_step(training_samples):
+    def train_step_VMC(training_samples):
         print("Tracing!")
         with tf.GradientTape() as tape:
             training_sample_logpsi = wavefxn.logpsi(training_samples)
@@ -104,29 +110,45 @@ def Train_w_VMC(config):
         return sample_loss
 
     # ---- Start From CKPT or Scratch -------------------------------------------------------------
-    ckpt = tf.train.Checkpoint(step=global_step, optimizer=wavefxn.optimizer, variables=wavefxn.trainable_variables)
-    manager = tf.train.CheckpointManager(ckpt, path, max_to_keep=1)
+    ckpt = tf.train.Checkpoint(step=global_step, optimizer=wavefxn.optimizer, variables=wavefxn.trainable_variables) # these are trackable objects - we get to specify
+    manager = tf.train.CheckpointManager(ckpt, path_old, max_to_keep=1)
 
-    if config['CKPT']:
-        ckpt.restore(manager.latest_checkpoint)
-        if manager.latest_checkpoint:
-            print("CKPT ON and ckpt found.")
+    if config['CKPT']: # will start from a specified starting point OR from the latest checkpoint if specified checkpoint not found OR from scratch if neither are found
+        restart_point = data_epochs
+        index = int((restart_point-(restart_point%10))/10 - 1)
+        if index < len(manager.checkpoints):
+            ckpt.restore(manager.checkpoints[index])
+            ckpt_found = True
+        else:
+            manager.latest_checkpoint
+            ckpt_found = False
+        if ckpt_found:
+            print(f"CKPT ON and ckpt {index} found.")
+            print("Restored from {}".format(manager.checkpoints[index]))
+            ckpt_step = ckpt.step.numpy()
+            optimizer_initializer(wavefxn.optimizer)
+            print(f"Continuing at step {ckpt.step.numpy()}")
+            energy = np.load(path_old+'/Energy.npy').tolist()[0:ckpt_step]
+            variance = np.load(path_old+'/Variance.npy').tolist()[0:ckpt_step]
+            cost = np.load(path_old+'/Cost.npy').tolist()[0:ckpt_step]
+        elif manager.latest_checkpoint:
+            print(f"CKPT ON but ckpt {index} not found.")
             print("Restored from {}".format(manager.latest_checkpoint))
             latest_ckpt = ckpt.step.numpy()
             optimizer_initializer(wavefxn.optimizer)
             print(f"Continuing at step {ckpt.step.numpy()}")
-            energy = np.load(path+'/Energy.npy').tolist()[0:latest_ckpt]
-            variance = np.load(path+'/Variance.npy').tolist()[0:latest_ckpt]
-            cost = np.load(path+'/Cost.npy').tolist()[0:latest_ckpt]
-
+            energy = np.load(path_old+'/Energy.npy').tolist()[0:latest_ckpt]
+            variance = np.load(path_old+'/Variance.npy').tolist()[0:latest_ckpt]
+            cost = np.load(path_old+'/Cost.npy').tolist()[0:latest_ckpt]
         else:
             print("CKPT ON but no ckpt found. Initializing from scratch.")
+            latest_ckpt = 0
             energy = []
             variance = []
             cost = []
-
     else:
         print("CKPT OFF. Initializing from scratch.")
+        latest_ckpt = 0
         energy = []
         variance = []
         cost = []
@@ -141,11 +163,11 @@ def Train_w_VMC(config):
         loss = []
 
         for i, batch in enumerate(samples_tf):
-            batch_loss = train_step(batch)
+            batch_loss = train_step_VMC(batch)
             loss.append(batch_loss)
 
         global_step.assign_add(1)
-        
+
         #append the energy to see convergence
         avg_loss = np.mean(loss)
         samples, _ = wavefxn.sample(ns)
@@ -170,12 +192,12 @@ def Train_w_VMC(config):
 
         if (config['CKPT']) & (n%50 == 0):
             manager.save()
-            print(f"Saved checkpoint for step {n} in {path}.")
+            print(f"Saved checkpoint for step {n} in {path_new}.")
 
         if (config['Write_Data']) & (n%50 == 0):
-            print(f"Saved training quantitites for step {n} in {path}.")
-            np.save(path+'/Energy',energy)
-            np.save(path+'/Variance',variance)
-            np.save(path+'/Cost',cost)
-                
-    return wavefxn, energy, variance, cost
+            print(f"Saved training quantitites for step {n} in {path_new}.")
+            np.save(path_new+'/Energy',energy)
+            np.save(path_new+'/Variance',variance)
+            np.save(path_new+'/Cost',cost)
+
+    return wavefxn, energy, variance,cost
