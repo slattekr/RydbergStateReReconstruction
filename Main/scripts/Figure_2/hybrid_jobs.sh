@@ -12,10 +12,10 @@ do
         for seed in $(seq 100 100 100) # one seed for now
         do
             X="$delta|OneD|Nh=32|Hybrid_$data_epochs|$seed"
-            sbatch -J "$X" --export="delta=$delta,$dim='OneD',$nh=32,seed=$seed" submit_hybrid_training.sh
+            sbatch -J "$X" --export="delta=$delta,dim=OneD,nh=32,seed=$seed" submit_hybrid_training.sh
 
             X="$delta|TwoD|Nh=16|Hybrid_$data_epochs|$seed"
-            sbatch -J "$X" --export="delta=$delta,$dim='TwoD',$nh=16,seed=$seed" submit_hybrid_training.sh
+            sbatch -J "$X" --export="delta=$delta,dim=TwoD,nh=16,seed=$seed" submit_hybrid_training.sh
                 
         done 
         sleep 0.5s
