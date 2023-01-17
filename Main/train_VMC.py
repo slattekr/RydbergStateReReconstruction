@@ -69,9 +69,10 @@ def Train_w_VMC(config):
         else:
             wavefxn = OneD_RNN_wavefxn(Lx,Ly,num_hidden,learning_rate,seed)
     elif config['RNN'] =='TwoD':
+        mdgru = config.get(config['MDGRU'],True)
         if config['Print'] ==True:
             print(f"Training a two-D RNN wave function with {num_hidden} hidden units and shared weights = {weight_sharing}.")
-        if config['MDGRU']:
+        if mdgru:
             wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDRNNGRUcell)
         else:
             wavefxn = MDRNNWavefunction(Lx,Ly,V,Omega,delta,num_hidden,learning_rate,weight_sharing,trunc,seed,cell=MDTensorizedRNNCell)
