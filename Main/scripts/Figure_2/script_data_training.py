@@ -38,7 +38,7 @@ Rb = 1.15
 V0 = Rb**6 * Omega
 sweep_rate = 15
 
-delta_val = args.delta
+delta_arg = args.delta
 data_steps_arg = args.data_epochs
 rnn_dim_arg = args.rnn_dim
 nh_arg = args.nh
