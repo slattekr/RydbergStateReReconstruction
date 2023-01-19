@@ -56,8 +56,8 @@ def Train_w_Data_then_VMC(config):
 
     # ---- Data Path ---------------------------------------------------------------------------
     exp_name = config['name']
-    path_old = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}'
-    path_new = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}/hybrid_training/{data_epochs}_datasteps'
+    path_old = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}/seed_{seed}'
+    path_new = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}/seed_{seed}/hybrid_training/{data_epochs}_datasteps'
     if not os.path.exists(path_new):
         os.makedirs(path_new)
     with open(path_new+'/config.txt', 'w') as file:

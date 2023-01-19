@@ -56,7 +56,7 @@ def Train_w_Data(config):
 
     # ---- Data Path ---------------------------------------------------------------------------
     exp_name = config['name']
-    path = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}'
+    path = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}/seed_{seed}'
     if not os.path.exists(path):
         os.makedirs(path)
     with open(path+'/config.txt', 'w') as file:
