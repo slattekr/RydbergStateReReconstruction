@@ -21,12 +21,13 @@ class OneD_RNN_wavefxn(tf.keras.Model):
         self.nh       = num_hidden      # Number of hidden units in the RNN
         self.seed     = seed            # Seed of random number generator 
         self.K        = 2               # Dimension of the local Hilbert space
+        self.lr       = learning_rate
         
         # Set the seed of the rng
         tf.random.set_seed(self.seed)
 
         # Optimizer
-        self.optimizer = tf.optimizers.Adam(learning_rate, epsilon=1e-8)
+        self.optimizer = tf.optimizers.Adam(self.lr, epsilon=1e-8)
 
         # Build the model RNN
         # RNN layer: N -> nh
@@ -123,12 +124,15 @@ class RNNWavefunction1D(tf.keras.Model):
         self.nh       = num_hidden      # Number of hidden units in the RNN
         self.local_hilbert_space = 2               # Dimension of the local Hilbert space
         self.seed     = seed
+        self.lr        =learning_rate
 
         # Set the seed of the rng
         tf.random.set_seed(self.seed)
 
         # Optimizer
-        self.optimizer = tf.optimizers.Adam(learning_rate, epsilon=1e-8) 
+        self.optimizer = tf.optimizers.Adam(self.lr, epsilon=1e-8) 
+        print(f"The input learning rate is {learning_rate}")
+        print(f"The optimizer learning rate is {self.optimizer.lr.numpy()}")
 
         # Defining RNN cells with site-dependent parameters
         self.rnn = tf.keras.layers.GRU(self.nh, kernel_initializer='glorot_uniform',
