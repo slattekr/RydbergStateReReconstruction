@@ -44,10 +44,12 @@ def Train_w_Data_then_VMC(config):
     batch_samples = config.get('batch_samples', False)
     if batch_samples:
         batch_size_samples = config.get('batch_size_samples', 100)
-        print(f"Batching samples drawn from RNN with batch size = {batch_size_samples}")
+        if config['Print'] ==True:
+            print(f"Batching samples drawn from RNN with batch size = {batch_size_samples}")
     else:
         batch_size_samples = ns
-        print(f"Not batching samples drawn from RNN, meaning batch size = {ns}")
+        if config['Print'] ==True:
+            print(f"Not batching samples drawn from RNN, meaning batch size = {ns}")
     batch_size_data = config.get('batch_size_data', 100)
     data_epochs = config['Data_epochs']
     vmc_epochs = config['VMC_epochs']
