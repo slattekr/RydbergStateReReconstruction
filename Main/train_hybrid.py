@@ -114,46 +114,57 @@ def Train_w_Data_then_VMC(config):
     ckpt = tf.train.Checkpoint(step=global_step, optimizer=wavefxn.optimizer, variables=wavefxn.trainable_variables) # these are trackable objects - we get to specify
     manager_old = tf.train.CheckpointManager(ckpt, path_old, max_to_keep=1)
     manager_new = tf.train.CheckpointManager(ckpt, path_new, max_to_keep=1)
+    load_only = config.get('Load_Only', False)
 
-    if config['CKPT']: # will start from a specified starting point OR from the latest checkpoint if specified checkpoint not found OR from scratch if neither are found
-        restart_point = data_epochs
-        index = int((restart_point-(restart_point%10))/10 - 1)
-        if index < len(manager_old.checkpoints):
-            ckpt.restore(manager_old.checkpoints[index])
-            ckpt_found = True
+    if load_only:
+        print(f"Restoring the fully trained model from {manager_new.latest_checkpoint}.")
+        manager_new.latest_checkpoint
+        ckpt_step = ckpt.step.numpy()
+        optimizer_initializer(wavefxn.optimizer)
+        energy = np.load(path_new+'/Energy.npy').tolist()[0:ckpt_step]
+        variance = np.load(path_new+'/Variance.npy').tolist()[0:ckpt_step]
+        cost = np.load(path_new+'/Cost.npy').tolist()[0:ckpt_step]
+        global_step = tf.constant(total_epochs) # so that we dont keep training
+    else:
+        if config['CKPT']: # will start from a specified starting point OR from the latest checkpoint if specified checkpoint not found OR from scratch if neither are found
+            restart_point = data_epochs
+            index = int((restart_point-(restart_point%10))/10 - 1)
+            if index < len(manager_old.checkpoints):
+                ckpt.restore(manager_old.checkpoints[index])
+                ckpt_found = True
+            else:
+                manager_old.latest_checkpoint
+                ckpt_found = False
+            if ckpt_found:
+                print(f"CKPT ON and ckpt {index} found.")
+                print("Restored from {}".format(manager_old.checkpoints[index]))
+                ckpt_step = ckpt.step.numpy()
+                optimizer_initializer(wavefxn.optimizer)
+                print(f"Continuing at step {ckpt.step.numpy()}")
+                energy = np.load(path_old+'/Energy.npy').tolist()[0:ckpt_step]
+                variance = np.load(path_old+'/Variance.npy').tolist()[0:ckpt_step]
+                cost = np.load(path_old+'/Cost.npy').tolist()[0:ckpt_step]
+            elif manager_old.latest_checkpoint:
+                print(f"CKPT ON but ckpt {index} not found.")
+                print("Restored from {}".format(manager_old.latest_checkpoint))
+                latest_ckpt = ckpt.step.numpy()
+                optimizer_initializer(wavefxn.optimizer)
+                print(f"Continuing at step {ckpt.step.numpy()}")
+                energy = np.load(path_old+'/Energy.npy').tolist()[0:latest_ckpt]
+                variance = np.load(path_old+'/Variance.npy').tolist()[0:latest_ckpt]
+                cost = np.load(path_old+'/Cost.npy').tolist()[0:latest_ckpt]
+            else:
+                print("CKPT ON but no ckpt found. Initializing from scratch.")
+                latest_ckpt = 0
+                energy = []
+                variance = []
+                cost = []
         else:
-            manager_old.latest_checkpoint
-            ckpt_found = False
-        if ckpt_found:
-            print(f"CKPT ON and ckpt {index} found.")
-            print("Restored from {}".format(manager_old.checkpoints[index]))
-            ckpt_step = ckpt.step.numpy()
-            optimizer_initializer(wavefxn.optimizer)
-            print(f"Continuing at step {ckpt.step.numpy()}")
-            energy = np.load(path_old+'/Energy.npy').tolist()[0:ckpt_step]
-            variance = np.load(path_old+'/Variance.npy').tolist()[0:ckpt_step]
-            cost = np.load(path_old+'/Cost.npy').tolist()[0:ckpt_step]
-        elif manager_old.latest_checkpoint:
-            print(f"CKPT ON but ckpt {index} not found.")
-            print("Restored from {}".format(manager_old.latest_checkpoint))
-            latest_ckpt = ckpt.step.numpy()
-            optimizer_initializer(wavefxn.optimizer)
-            print(f"Continuing at step {ckpt.step.numpy()}")
-            energy = np.load(path_old+'/Energy.npy').tolist()[0:latest_ckpt]
-            variance = np.load(path_old+'/Variance.npy').tolist()[0:latest_ckpt]
-            cost = np.load(path_old+'/Cost.npy').tolist()[0:latest_ckpt]
-        else:
-            print("CKPT ON but no ckpt found. Initializing from scratch.")
+            print("CKPT OFF. Initializing from scratch.")
             latest_ckpt = 0
             energy = []
             variance = []
             cost = []
-    else:
-        print("CKPT OFF. Initializing from scratch.")
-        latest_ckpt = 0
-        energy = []
-        variance = []
-        cost = []
 
     # ---- Train ----------------------------------------------------------------------------------
     it = global_step.numpy()
