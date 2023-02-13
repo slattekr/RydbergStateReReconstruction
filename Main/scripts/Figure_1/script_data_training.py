@@ -46,7 +46,7 @@ seed_arg = args.seed
 
 def main():
     config = {
-        'name': 'Figure2', # A very random name for each experiment
+        'name': 'Figure2', 
 
         'Lx':Lx,  # number of sites in x-direction                    
         'Ly':Ly,  # number of sites in the y-directioni
@@ -56,13 +56,13 @@ def main():
         'sweep_rate':sweep_rate,
         
         'nh': nh_arg,  # number of memory/hidden units
-        'lr': 5e-4,  # learning rate
+        'lr': 1e-3,  # learning rate
         'weight_sharing': True,
         'trunc': 100,
         'seed': seed_arg,
         
         'RNN': rnn_dim_arg,
-        'VMC_epochs':10000,
+        'VMC_epochs':0,
         'Data_epochs':data_steps_arg,
         
         'ns': 100,
@@ -73,7 +73,7 @@ def main():
         'CKPT':True
         }
     
-    return Train_w_Data_then_VMC(config)
+    return Train_w_Data(config)
 
 
 if __name__ == "__main__":

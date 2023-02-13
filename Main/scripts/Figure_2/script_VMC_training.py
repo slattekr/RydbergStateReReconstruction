@@ -56,14 +56,14 @@ def main():
         'sweep_rate':sweep_rate,
         
         'nh': nh_arg,  # number of memory/hidden units
-        'lr': 5e-4,  # learning rate
+        'lr': 1e-3,  # learning rate
         'weight_sharing': True,
         'trunc': 100,
         'seed': seed_arg,
         
         'RNN': rnn_dim_arg,
         'VMC_epochs':10000,
-        'Data_epochs':data_steps_arg,
+        'Data_epochs':0,
         
         'ns': 100,
         'batch_size_data': 100,
@@ -73,7 +73,7 @@ def main():
         'CKPT':True
         }
     
-    return Train_w_Data_then_VMC(config)
+    return Train_w_VMC(config)
 
 
 if __name__ == "__main__":

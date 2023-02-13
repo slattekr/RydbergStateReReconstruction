@@ -46,7 +46,7 @@ seed_arg = args.seed
 
 def main():
     config = {
-        'name': 'Figure2', # A very random name for each experiment
+        'name': 'Figure3', # A very random name for each experiment
 
         'Lx':Lx,  # number of sites in x-direction                    
         'Ly':Ly,  # number of sites in the y-directioni
@@ -56,7 +56,7 @@ def main():
         'sweep_rate':sweep_rate,
         
         'nh': nh_arg,  # number of memory/hidden units
-        'lr': 5e-4,  # learning rate
+        'lr': 1e-3,  # learning rate
         'weight_sharing': True,
         'trunc': 100,
         'seed': seed_arg,

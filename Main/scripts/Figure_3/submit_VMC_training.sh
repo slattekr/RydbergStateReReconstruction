@@ -5,7 +5,7 @@
 #SBATCH --mem=20000
 #SBATCH --account=rrg-rgmelko-ab
 #SBATCH --mail-user=msmoss@uwaterloo.ca
-#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-type=FAIL
 
 module load cuda/11.2.2 cudnn/8.2.0
 
@@ -19,7 +19,7 @@ echo $delta
 echo $dim
 echo $nh
 
-python script_data_training.py \
-    $delta 10000 \
+python script_VMC_training.py \
+    $delta 0 \
     --rnn_dim $dim --nh $nh \
     --seed $seed

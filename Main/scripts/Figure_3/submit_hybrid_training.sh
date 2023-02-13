@@ -5,7 +5,7 @@
 #SBATCH --mem=20000
 #SBATCH --account=rrg-rgmelko-ab
 #SBATCH --mail-user=msmoss@uwaterloo.ca
-#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-type=FAIL
 
 module load cuda/11.2.2 cudnn/8.2.0
 
@@ -16,10 +16,11 @@ export TF_GPU_ALLOCATOR=cuda_malloc_async
 source ../ReconstructRydberg/bin/activate
 
 echo $delta
+echo $data_epochs
 echo $dim
 echo $nh
 
-python script_data_training.py \
-    $delta 10000 \
+python script_hybrid_training.py \
+    $delta $data_epochs \
     --rnn_dim $dim --nh $nh \
     --seed $seed

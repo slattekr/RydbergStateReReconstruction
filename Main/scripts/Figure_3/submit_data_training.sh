@@ -5,7 +5,7 @@
 #SBATCH --mem=20000
 #SBATCH --account=rrg-rgmelko-ab
 #SBATCH --mail-user=msmoss@uwaterloo.ca
-#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-type=FAIL
 
 module load cuda/11.2.2 cudnn/8.2.0
 
