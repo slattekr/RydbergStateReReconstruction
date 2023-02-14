@@ -42,6 +42,16 @@ def load_KZ_QMC_uncorr_data(delta,dset_size):
     uncorr_data = data[indices,:]
     return uncorr_data
 
+def load_KZ_QMC_uncorr_data_from_batches(delta,dset_size):
+    data = np.zeros((1,256))
+    for i in range(0,10):
+        batch = np.load(f"./../../../QMC_data/all_samples/delta_{delta}/all_samples_batch_{i}.npy")
+        data = np.append(data, batch,axis = 0)
+    data = data[1:,:]
+    indices = np.random.randint(0,high=np.shape(data)[0],size=dset_size)
+    uncorr_data = data[indices,:]
+    return uncorr_data
+
 def create_KZ_QMC_tf_dataset(data):
     return tf.data.Dataset.from_tensor_slices(data)
 
