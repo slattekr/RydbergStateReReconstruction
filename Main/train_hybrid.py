@@ -146,6 +146,7 @@ def Train_w_Data_then_VMC(config):
                 energy = np.load(path_old+'/Energy.npy').tolist()[0:ckpt_step]
                 variance = np.load(path_old+'/Variance.npy').tolist()[0:ckpt_step]
                 cost = np.load(path_old+'/Cost.npy').tolist()[0:ckpt_step]
+                wavefxn.optimizer.lr = learning_rate
             elif manager_old.latest_checkpoint:
                 print(f"CKPT ON but ckpt {index} not found.")
                 print("Restored from {}".format(manager_old.latest_checkpoint))
@@ -155,6 +156,7 @@ def Train_w_Data_then_VMC(config):
                 energy = np.load(path_old+'/Energy.npy').tolist()[0:latest_ckpt]
                 variance = np.load(path_old+'/Variance.npy').tolist()[0:latest_ckpt]
                 cost = np.load(path_old+'/Cost.npy').tolist()[0:latest_ckpt]
+                wavefxn.optimizer.lr = learning_rate
             else:
                 print("CKPT ON but no ckpt found. Initializing from scratch.")
                 latest_ckpt = 0
