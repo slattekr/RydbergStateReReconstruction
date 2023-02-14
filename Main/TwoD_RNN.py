@@ -168,7 +168,8 @@ class MDRNNWavefunction(object):
         self.seed     = seed            # Seed of random number generator 
         self.K        = 2               # Dimension of the local Hilbert space
         self.weight_sharing = weight_sharing # Option to share weights between RNN cells or not (default = True)
-        self.optimizer = tf.optimizers.Adam(learning_rate, epsilon=1e-8)
+        self.lr = learning_rate
+        self.optimizer = tf.optimizers.Adam(self.lr, epsilon=1e-8)
 
         # Set the seed of the rng
         tf.random.set_seed(self.seed)
