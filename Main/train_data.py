@@ -58,6 +58,7 @@ def Train_w_Data(config):
         tf_dataset = create_KZ_QMC_tf_dataset(data)
         if config['Print']:
             print("Using QMC samples for data-driven training.")
+            print(f"The size of the dataset is {np.shape(data)}")
     else:
         data = data_given_param(sweep_rate,delta)
         tf_dataset = create_KZ_tf_dataset(data)   
@@ -68,7 +69,7 @@ def Train_w_Data(config):
     # ---- Data Path ---------------------------------------------------------------------------
     exp_name = config['name']
     if qmc_data:
-        path = f'./data/N_{Lx*Ly}/{exp_name}/QMC_data/{rnn_type}_rnn/delta_{delta}/seed_{seed}'
+        path = f'./data/N_{Lx*Ly}/{exp_name}/QMC_data/dset_size_{dset_size}/{rnn_type}_rnn/delta_{delta}/seed_{seed}'
     else:
         path = f'./data/N_{Lx*Ly}/{exp_name}/Exp_data/{rnn_type}_rnn/delta_{delta}/seed_{seed}'
     if not os.path.exists(path):
