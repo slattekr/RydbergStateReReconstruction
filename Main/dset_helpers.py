@@ -2,7 +2,7 @@ import os
 import tensorflow as tf
 import numpy as np
 import glob
-import pandas as pd
+# import pandas as pd
 
 Exact_Es = {'4':-0.4534132086591546,'8':-0.40518005298872917,'12':-0.3884864748124427,'16':-0.380514770608724}
 
@@ -23,18 +23,18 @@ def load_QMC_data(dim):
         uploaded[file] = data
     return uploaded
 
-def load_KZ_QMC_data(delta):
-    path = "./../../../QMC_data/all_samples/"
-    delta_path = f"delta_{delta}/"
-    data = np.zeros((1,256))
-    for M in np.array([100000,150000,200000,300000]):
-        for seed in np.arange(100,2501,100):
-            for batch in np.arange(1,21,1):
-                batch_s = '0'+str(batch)
-                batch_s = batch_s[-2:]
-                samples = np.array(pd.read_csv(path+delta_path+f'samples_M=({M})_seed=({seed})_batch=({batch_s}).csv', sep=','))
-                data = np.append(data,samples,axis=0)
-    return data[1:,:]
+# def load_KZ_QMC_data(delta):
+#     path = "./../../../QMC_data/all_samples/"
+#     delta_path = f"delta_{delta}/"
+#     data = np.zeros((1,256))
+#     for M in np.array([100000,150000,200000,300000]):
+#         for seed in np.arange(100,2501,100):
+#             for batch in np.arange(1,21,1):
+#                 batch_s = '0'+str(batch)
+#                 batch_s = batch_s[-2:]
+#                 samples = np.array(pd.read_csv(path+delta_path+f'samples_M=({M})_seed=({seed})_batch=({batch_s}).csv', sep=','))
+#                 data = np.append(data,samples,axis=0)
+#     return data[1:,:]
 
 def load_KZ_QMC_uncorr_data(delta,dset_size):
     data = np.load(f"./../../../QMC_data/all_samples/delta_{delta}/all_samples_delta_{delta}.npy")
@@ -50,7 +50,7 @@ def load_KZ_QMC_uncorr_data_from_batches(delta,dset_size):
     data = data[1:,:]
     indices = np.random.randint(0,high=np.shape(data)[0],size=dset_size)
     uncorr_data = data[indices,:]
-    return uncorr_data
+    return uncorr_data.astype(int)
 
 def create_KZ_QMC_tf_dataset(data):
     return tf.data.Dataset.from_tensor_slices(data)

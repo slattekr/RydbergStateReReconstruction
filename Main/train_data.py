@@ -4,6 +4,7 @@ physical_devices = tf.config.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
 import numpy as np
 from dset_helpers import create_KZ_tf_dataset, data_given_param
+from dset_helpers import load_KZ_QMC_uncorr_data_from_batches,create_KZ_QMC_tf_dataset
 from OneD_RNN import OneD_RNN_wavefxn,RNNWavefunction1D
 from TwoD_RNN import MDRNNWavefunction,MDTensorizedRNNCell,MDRNNGRUcell
 from energy_func import buildlattice,construct_mats,get_Rydberg_Energy_Vectorized
@@ -50,13 +51,26 @@ def Train_w_Data(config):
         print(f"Not batching samples drawn from RNN, meaning batch size = {ns}")
     batch_size_data = config.get('batch_size_data', 100)
     epochs = config['Data_epochs']
-    data = data_given_param(sweep_rate,delta)
-    tf_dataset = create_KZ_tf_dataset(data)   
+    qmc_data = config.get('QMC_data', False)
+    if qmc_data:
+        dset_size = config.get('dset_size',1000)
+        data = load_KZ_QMC_uncorr_data_from_batches(delta,dset_size)
+        tf_dataset = create_KZ_QMC_tf_dataset(data)
+        if config['Print']:
+            print("Using QMC samples for data-driven training.")
+    else:
+        data = data_given_param(sweep_rate,delta)
+        tf_dataset = create_KZ_tf_dataset(data)   
+        if config['Print']:
+            print("Using experimental samples for data-driven training.")
     global_step = tf.Variable(0, name="global_step") 
 
     # ---- Data Path ---------------------------------------------------------------------------
     exp_name = config['name']
-    path = f'./data/N_{Lx*Ly}/{exp_name}/{rnn_type}_rnn/delta_{delta}/seed_{seed}'
+    if qmc_data:
+        path = f'./data/N_{Lx*Ly}/{exp_name}/QMC_data/{rnn_type}_rnn/delta_{delta}/seed_{seed}'
+    else:
+        path = f'./data/N_{Lx*Ly}/{exp_name}/Exp_data/{rnn_type}_rnn/delta_{delta}/seed_{seed}'
     if not os.path.exists(path):
         os.makedirs(path)
     with open(path+'/config.txt', 'w') as file:
