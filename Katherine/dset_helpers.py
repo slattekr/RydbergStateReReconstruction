@@ -39,7 +39,7 @@ def create_tf_dataset(uploaded_files, data_step_size=100):
     dataset = tf.data.Dataset.from_tensor_slices(data)
     return dataset
 
-def load_essiqurke_data(dim,delta:str,data_step_size):
+def load_essiqurke_data(dim,delta:str):
     delta_str = "{:.2f}".format(delta)
     direc = f"./data/nY={dim}"
     file_name = "/\u03B4="+delta_str+"_samples.csv"
